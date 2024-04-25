@@ -1,0 +1,25 @@
+[submodule "vendor/freetype"]
+	path = vendor/freetype
+	url = https://github.com/freetype/freetype.git
+	ignore = dirty
+[submodule "vendor/SDL"]
+	path = vendor/SDL
+	url = https://github.com/libsdl-org/SDL.git
+	branch = SDL2
+	ignore = dirty
+[submodule "vendor/libepoxy"]
+	path = vendor/libepoxy
+	url = https://github.com/anholt/libepoxy.git
+	ignore = dirty
+[submodule "vendor/miniaudio"]
+	path = vendor/miniaudio
+	url = https://github.com/mackron/miniaudio.git
+	ignore = dirty
+[submodule "vendor/glfw"]
+	path = vendor/glfw
+	url = https://github.com/glfw/glfw.git
+	ignore = dirty
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = https://github.com/nothings/stb
+	ignore = dirty
