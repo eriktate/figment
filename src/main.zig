@@ -30,7 +30,7 @@ pub fn main() !void {
 
     // input_mgr should generally be the first thing initialized
     try input_mgr.init(alloc);
-    var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Ronin - float", .{ .style = .windowed, .vsync = false });
+    var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
     defer win.deinit();
 
     lastTime = logSince(lastTime, "window initialized");
