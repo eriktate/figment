@@ -25,6 +25,15 @@ pub const Quad = extern struct {
         };
     }
 
+    pub fn initCorners(tl: Pos, br: Pos) Quad {
+        return .{
+            .tl = Vertex{ .pos = tl },
+            .tr = Vertex{ .pos = tl.add(.{ .x = br.x }) },
+            .bl = Vertex{ .pos = tl.add(.{ .y = br.y }) },
+            .br = Vertex{ .pos = br },
+        };
+    }
+
     pub fn setTex(self: *Quad, tl: TexPos, br: TexPos) void {
         self.tl.tex_pos = tl;
         self.tr.tex_pos = tl.add(.{ .x = br.x });

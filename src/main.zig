@@ -7,13 +7,14 @@ const render = @import("render/render.zig");
 const Shader = @import("gl/shader.zig");
 const input_mgr = @import("input/manager.zig");
 const QuadRenderer = @import("render/quad_renderer.zig");
+const font = @import("font.zig");
 const Texture = @import("render/texture.zig");
 const sprite = @import("sprite.zig");
 
-const WINDOW_WIDTH = 640;
-const WINDOW_HEIGHT = 480;
-const VIEW_WIDTH = 320;
-const VIEW_HEIGHT = 240;
+const WINDOW_WIDTH = 1280;
+const WINDOW_HEIGHT = 720;
+const VIEW_WIDTH = 640;
+const VIEW_HEIGHT = 360;
 
 fn logSince(time: i64, msg: []const u8) i64 {
     const now = std.time.microTimestamp();
@@ -28,6 +29,7 @@ pub fn main() !void {
     std.log.info("starting ronin...", .{});
     const alloc = std.heap.page_allocator;
 
+    _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
     // input_mgr should generally be the first thing initialized
     try input_mgr.init(alloc);
     var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
@@ -36,7 +38,7 @@ pub fn main() !void {
     lastTime = logSince(lastTime, "window initialized");
 
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
-    _ = try Texture.fromFile(alloc, "./sprites/face.png");
+    _ = try Texture.fromFile(alloc, "./assets/sprites/face.png");
 
     var face_spr = sprite.Sprite{
         .pos = render.Pos.init(120, 120, 0),
