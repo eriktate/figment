@@ -11,6 +11,7 @@ const font = @import("font.zig");
 const Texture = @import("render/texture.zig");
 const sprite = @import("sprite.zig");
 const log = @import("log.zig");
+const Ase = @import("ase.zig").Ase;
 
 const WINDOW_WIDTH = 1280;
 const WINDOW_HEIGHT = 720;
@@ -23,6 +24,12 @@ pub fn main() !void {
     const alloc = std.heap.page_allocator;
 
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
+    const ase = try Ase.fromFile(alloc, "./assets/sprites/face.ase");
+    defer ase.deinit();
+
+    const pixels = try ase.render(alloc);
+    _ = c.stbi_write_png("./face.png", @intCast(ase.header.width), @intCast(ase.header.height), 4, @ptrCast(pixels.ptr), @intCast(ase.header.width * 4));
+
     // input_mgr should generally be the first thing initialized
     try input_mgr.init(alloc);
     var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
