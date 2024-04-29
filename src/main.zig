@@ -10,23 +10,16 @@ const QuadRenderer = @import("render/quad_renderer.zig");
 const font = @import("font.zig");
 const Texture = @import("render/texture.zig");
 const sprite = @import("sprite.zig");
+const log = @import("log.zig");
 
 const WINDOW_WIDTH = 1280;
 const WINDOW_HEIGHT = 720;
 const VIEW_WIDTH = 640;
 const VIEW_HEIGHT = 360;
 
-fn logSince(time: i64, msg: []const u8) i64 {
-    const now = std.time.microTimestamp();
-    const elapsed: f32 = @floatFromInt(now - time);
-    std.log.info("{s} ({d}ms)", .{ msg, elapsed / 1000 });
-
-    return now;
-}
-
 pub fn main() !void {
-    var lastTime = std.time.microTimestamp();
-    std.log.info("starting ronin...", .{});
+    std.debug.print("\n", .{}); // because reasons?
+    log.info("starting ronin...", .{});
     const alloc = std.heap.page_allocator;
 
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
@@ -35,7 +28,7 @@ pub fn main() !void {
     var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
     defer win.deinit();
 
-    lastTime = logSince(lastTime, "window initialized");
+    log.info("window initialized", .{});
 
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
     _ = try Texture.fromFile(alloc, "./assets/sprites/face.png");
@@ -64,7 +57,7 @@ pub fn main() !void {
 
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    lastTime = logSince(lastTime, "game initialized");
+    log.info("game initialized", .{});
     var last_time = win.getTime();
     var current_time = win.getTime();
     var dt: f32 = 0;
