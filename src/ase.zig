@@ -373,8 +373,8 @@ pub const Ase = struct {
                                 const x: usize = @intCast(cel.x);
                                 const y: usize = @intCast(cel.y);
 
-                                const origin = y * width + x;
-                                const offset = (idx / width) * width + idx % width;
+                                const origin = y * canvas_width + x;
+                                const offset = (idx / width) * canvas_width + idx % width;
                                 const current_pixel = canvas_pixels[origin + offset];
                                 canvas_pixels[origin + offset] = blend(layer.blend_mode, pixel, current_pixel);
                             }
