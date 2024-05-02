@@ -9,6 +9,7 @@ const AseErr = error{
     UnexpectedReadCount,
     InvalidColorDepth,
     InvalidBitsPerTile,
+    FrameOutOfBounds,
 };
 
 const MAGIC_NUMBER_ASE_HEADER = 0xa5e0;
@@ -41,9 +42,9 @@ const RECT = struct {
     size: SIZE,
 };
 
-const RGBA = [4]BYTE;
-const GRAYSCALE = [2]BYTE;
-const INDEX = BYTE;
+pub const RGBA = [4]BYTE;
+pub const GRAYSCALE = [2]BYTE;
+pub const INDEX = BYTE;
 
 const PixelType = enum(WORD) {
     rgba = 32,
@@ -147,8 +148,7 @@ const ColorProfileChunk = struct {
 const Frame = struct {
     header: FrameHeader,
     chunks: []Chunk,
-    // ordered virtual lists that point to layers and cels within chunks
-    layers: std.ArrayList(*LayerChunk),
+    // ordered virtual lists that point to cels within chunks
     cels: std.ArrayList(*CelChunk),
 };
 
@@ -305,6 +305,7 @@ const TilesetChunk = struct {};
 pub const Ase = struct {
     header: Header,
     frames: []Frame,
+    layers: std.ArrayList(*LayerChunk),
     arena: std.heap.ArenaAllocator,
 
     pub fn deinit(self: Ase) void {
@@ -321,15 +322,17 @@ pub const Ase = struct {
         var ase = Ase{
             .header = header,
             .frames = undefined,
+            .layers = undefined,
             .arena = std.heap.ArenaAllocator.init(alloc),
         };
         errdefer ase.arena.deinit();
+
+        ase.layers = try std.ArrayList(*LayerChunk).initCapacity(ase.arena.allocator(), 10);
 
         ase.frames = try ase.arena.allocator().alloc(Frame, header.frames);
         for (0..ase.header.frames) |frame_idx| {
             var frame = Frame{
                 .header = try parseFrameHeader(stream),
-                .layers = try std.ArrayList(*LayerChunk).initCapacity(ase.arena.allocator(), 10),
                 .cels = try std.ArrayList(*CelChunk).initCapacity(ase.arena.allocator(), 10),
                 .chunks = undefined,
             };
@@ -338,7 +341,7 @@ pub const Ase = struct {
             for (0..frame.header.chunks) |chunk_idx| {
                 frame.chunks[chunk_idx] = try parseChunk(&ase, stream);
                 switch (frame.chunks[chunk_idx].chunk) {
-                    .layer => try frame.layers.append(&frame.chunks[chunk_idx].chunk.layer),
+                    .layer => try ase.layers.append(&frame.chunks[chunk_idx].chunk.layer),
                     .cel => try frame.cels.append(&frame.chunks[chunk_idx].chunk.cel),
                     else => continue,
                 }
@@ -351,19 +354,14 @@ pub const Ase = struct {
         return ase;
     }
 
-    pub fn render(ase: Ase, alloc: std.mem.Allocator) ![]RGBA {
-        const canvas_width = ase.header.width;
-        const canvas_height = ase.header.height;
-
-        var canvas_pixels = try alloc.alloc(RGBA, canvas_width * canvas_height);
-        for (canvas_pixels, 0..) |_, i| {
-            canvas_pixels[i] = .{ 0, 0, 0, 0 };
+    pub fn renderFrame(ase: Ase, frame_idx: usize, bitmap: []RGBA, canvas_width: usize) !void {
+        if (frame_idx >= ase.frames.len) {
+            return AseErr.FrameOutOfBounds;
         }
 
-        // TODO: make this work for multiple frames
-        const frame = ase.frames[0];
+        const frame = ase.frames[frame_idx];
         for (frame.cels.items) |cel| {
-            const layer = frame.layers.items[cel.layer_index];
+            const layer = ase.layers.items[cel.layer_index];
             switch (cel.data) {
                 .compressed_image => |ci| {
                     switch (ci.pixels) {
@@ -375,8 +373,8 @@ pub const Ase = struct {
 
                                 const origin = y * canvas_width + x;
                                 const offset = (idx / width) * canvas_width + idx % width;
-                                const current_pixel = canvas_pixels[origin + offset];
-                                canvas_pixels[origin + offset] = blend(layer.blend_mode, pixel, current_pixel);
+                                const current_pixel = bitmap[origin + offset];
+                                bitmap[origin + offset] = blend(layer.blend_mode, pixel, current_pixel);
                             }
                         },
                         else => std.log.err("unhandled pixel data type", .{}),
@@ -384,6 +382,22 @@ pub const Ase = struct {
                 },
                 else => std.log.err("unhandled cel data type", .{}),
             }
+        }
+    }
+
+    pub fn renderSheet(ase: Ase, alloc: std.mem.Allocator) ![]RGBA {
+        const frame_width = ase.header.width;
+        const canvas_width = frame_width * ase.frames.len;
+        const canvas_height = ase.header.height;
+
+        var canvas_pixels = try alloc.alloc(RGBA, canvas_width * canvas_height);
+        for (canvas_pixels, 0..) |_, i| {
+            canvas_pixels[i] = .{ 0, 0, 0, 0 };
+        }
+
+        for (ase.frames, 0..) |_, frame_idx| {
+            const frame_offset = frame_width * frame_idx;
+            try renderFrame(ase, frame_idx, canvas_pixels[frame_offset..], canvas_width);
         }
 
         return canvas_pixels;
@@ -401,9 +415,6 @@ pub const Ase = struct {
                 const dest_alpha: f32 = @floatFromInt(d[3]);
                 const alpha_s = src_alpha / 255;
                 const alpha_d = dest_alpha / 255;
-
-                std.log.info("source alpha: {d}", .{alpha_s});
-                std.log.info("dest alpha: {d}", .{alpha_d});
 
                 const sr: f32 = @floatFromInt(s[0]);
                 const sg: f32 = @floatFromInt(s[1]);
@@ -477,12 +488,12 @@ pub const Ase = struct {
         };
 
         std.log.warn("cel chunk: {any}", .{cel});
-        for (cel.data.compressed_image.pixels.rgba, 0..) |pixel, idx| {
-            if (idx > 0 and idx % cel.data.compressed_image.width == 0) {
-                std.debug.print("\n", .{});
-            }
-            std.debug.print("[{d:0<3} {d:0<3} {d:0<3} {d:0<3}] ", .{ pixel[0], pixel[1], pixel[2], pixel[3] });
-        }
+        // for (cel.data.compressed_image.pixels.rgba, 0..) |pixel, idx| {
+        //     if (idx > 0 and idx % cel.data.compressed_image.width == 0) {
+        //         std.debug.print("\n", .{});
+        //     }
+        //     std.debug.print("[{d:0<3} {d:0<3} {d:0<3} {d:0<3}] ", .{ pixel[0], pixel[1], pixel[2], pixel[3] });
+        // }
         std.debug.print("\n", .{});
         return cel;
     }

@@ -1,4 +1,5 @@
 const std = @import("std");
+const ase = @import("../ase.zig");
 const c = @import("../c.zig");
 
 const TextureErr = error{
@@ -32,6 +33,31 @@ pub fn fromFile(alloc: std.mem.Allocator, path: []const u8) !Texture {
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
     c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(data));
+    c.glGenerateMipmap(c.GL_TEXTURE_2D);
+
+    return .{
+        .id = tex_id,
+    };
+}
+
+pub fn fromAseFile(alloc: std.mem.Allocator, path: []const u8) !Texture {
+    const file = try ase.Ase.fromFile(alloc, path);
+    defer file.deinit();
+
+    const width = file.header.width;
+    const height = file.header.height;
+    const bitmap = try alloc.alloc(ase.RGBA, width * height);
+    defer alloc.free(bitmap);
+
+    try file.renderFrame(0, bitmap, width);
+
+    var tex_id: u32 = undefined;
+    c.glGenTextures(1, &tex_id);
+    c.glActiveTexture(c.GL_TEXTURE0);
+    c.glBindTexture(c.GL_TEXTURE_2D, tex_id);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
+    c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(bitmap));
     c.glGenerateMipmap(c.GL_TEXTURE_2D);
 
     return .{

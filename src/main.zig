@@ -27,8 +27,9 @@ pub fn main() !void {
     const ase = try Ase.fromFile(alloc, "./assets/sprites/face.ase");
     defer ase.deinit();
 
-    const pixels = try ase.render(alloc);
-    _ = c.stbi_write_png("./face.png", @intCast(ase.header.width), @intCast(ase.header.height), 4, @ptrCast(pixels.ptr), @intCast(ase.header.width * 4));
+    const canvas_width: c_int = @intCast(ase.header.width * ase.frames.len);
+    const pixels = try ase.renderSheet(alloc);
+    _ = c.stbi_write_png("./face.png", canvas_width, @intCast(ase.header.height), 4, @ptrCast(pixels.ptr), canvas_width * 4);
 
     // input_mgr should generally be the first thing initialized
     try input_mgr.init(alloc);
@@ -38,7 +39,7 @@ pub fn main() !void {
     log.info("window initialized", .{});
 
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
-    _ = try Texture.fromFile(alloc, "./assets/sprites/face.png");
+    _ = try Texture.fromAseFile(alloc, "./assets/sprites/face.ase");
 
     var face_spr = sprite.Sprite{
         .pos = render.Pos.init(120, 120, 0),
