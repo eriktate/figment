@@ -1,0 +1,2 @@
+pub const Box = struct {};
+

@@ -26,6 +26,7 @@ pub fn fromFile(alloc: std.mem.Allocator, path: []const u8) !Texture {
     }
     defer c.stbi_image_free(data);
 
+    std.log.info("loading texture w={d} h={d}", .{ width, height });
     var tex_id: u32 = undefined;
     c.glGenTextures(1, &tex_id);
     c.glActiveTexture(c.GL_TEXTURE0);
@@ -33,7 +34,6 @@ pub fn fromFile(alloc: std.mem.Allocator, path: []const u8) !Texture {
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
     c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(data));
-    c.glGenerateMipmap(c.GL_TEXTURE_2D);
 
     return .{
         .id = tex_id,
@@ -58,7 +58,6 @@ pub fn fromAseFile(alloc: std.mem.Allocator, path: []const u8) !Texture {
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
     c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, width, height, 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(bitmap));
-    c.glGenerateMipmap(c.GL_TEXTURE_2D);
 
     return .{
         .id = tex_id,

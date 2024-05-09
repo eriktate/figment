@@ -7,7 +7,8 @@ pub const Color = dim.Vec4(u8);
 pub const Vertex = extern struct {
     pos: Pos = Pos.zero(),
     tex_pos: TexPos = TexPos.zero(),
-    color: Color = Color.zero(),
+    // default color of white so that we can actually see things
+    color: Color = .{ .x = 255, .y = 255, .z = 255, .w = 255 },
 };
 
 pub const Quad = extern struct {
@@ -36,8 +37,8 @@ pub const Quad = extern struct {
 
     pub fn setTex(self: *Quad, tl: TexPos, br: TexPos) void {
         self.tl.tex_pos = tl;
-        self.tr.tex_pos = tl.add(.{ .x = br.x });
-        self.bl.tex_pos = tl.add(.{ .y = br.y });
+        self.tr.tex_pos = .{ .x = br.x, .y = tl.y };
+        self.bl.tex_pos = .{ .x = tl.x, .y = br.y };
         self.br.tex_pos = br;
     }
 

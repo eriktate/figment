@@ -316,7 +316,6 @@ pub const Ase = struct {
         const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
         defer file.close();
 
-        std.log.warn("file '{s}' found, initiating parse", .{path});
         const stream = file.reader().any();
         const header = try parseHeader(stream);
         var ase = Ase{
@@ -350,7 +349,6 @@ pub const Ase = struct {
             ase.frames[frame_idx] = frame;
         }
 
-        std.log.warn("finished parsing {s}", .{path});
         return ase;
     }
 
@@ -401,6 +399,19 @@ pub const Ase = struct {
         }
 
         return canvas_pixels;
+    }
+
+    pub fn getTags(ase: Ase) ?[]Tag {
+        for (ase.frames) |frame| {
+            for (frame.chunks) |chunk| {
+                switch (chunk.chunk) {
+                    .tags => |tag_chunk| return tag_chunk.tags,
+                    else => {},
+                }
+            }
+        }
+
+        return null;
     }
 
     fn blend(mode: BlendMode, s: RGBA, d: RGBA) RGBA {
@@ -487,14 +498,6 @@ pub const Ase = struct {
             ) },
         };
 
-        std.log.warn("cel chunk: {any}", .{cel});
-        // for (cel.data.compressed_image.pixels.rgba, 0..) |pixel, idx| {
-        //     if (idx > 0 and idx % cel.data.compressed_image.width == 0) {
-        //         std.debug.print("\n", .{});
-        //     }
-        //     std.debug.print("[{d:0<3} {d:0<3} {d:0<3} {d:0<3}] ", .{ pixel[0], pixel[1], pixel[2], pixel[3] });
-        // }
-        std.debug.print("\n", .{});
         return cel;
     }
 
@@ -580,11 +583,6 @@ pub const Ase = struct {
             tag.name = try readString(alloc, stream);
         }
 
-        std.log.warn("tags chunk: {any}", .{chunk});
-        for (chunk.tags) |tag| {
-            std.log.warn("tag name: {s}", .{tag.name});
-        }
-
         return chunk;
     }
 };
@@ -636,7 +634,6 @@ fn parseHeader(stream: std.io.AnyReader) !Header {
     };
 
     if (header.magic_number != MAGIC_NUMBER_ASE_HEADER) {
-        std.log.warn("header: {d}, expected: {d}", .{ header.magic_number, MAGIC_NUMBER_ASE_HEADER });
         return AseErr.HeaderMagicNumber;
     }
 
@@ -654,7 +651,6 @@ fn parseFrameHeader(stream: std.io.AnyReader) !FrameHeader {
         .chunks = try readCast(DWORD, stream),
     };
 
-    std.log.warn("frame_header: {any}", .{header});
     if (header.magic_number != MAGIC_NUMBER_FRAME_HEADER) {
         return AseErr.FrameHeaderMagicNumber;
     }
@@ -739,4 +735,13 @@ test "parse ase file" {
 
     const pixels = ase.render();
     _ = c.stbi_write_png("./face.png", @intCast(ase.header.canvas_width), @intCast(ase.header.canvas_height), 4, @ptrCast(pixels.ptr), @intCast(ase.header.canvas_width * 4));
+}
+
+pub fn headerFromFile(path: []const u8) !Header {
+    const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+    defer file.close();
+
+    const stream = file.reader().any();
+    const header = try parseHeader(stream);
+    return header;
 }

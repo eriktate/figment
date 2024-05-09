@@ -58,8 +58,8 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
         indices[index + 2] = vertex + 1;
 
         indices[index + 3] = vertex + 1;
-        indices[index + 4] = vertex + 2;
-        indices[index + 5] = vertex + 3;
+        indices[index + 4] = vertex + 3;
+        indices[index + 5] = vertex + 2;
     }
 
     renderer.indices = indices;
