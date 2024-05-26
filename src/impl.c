@@ -1,3 +1,7 @@
+#define MA_NO_ENCODING
+#define MA_ENABLE_SPECIFIC_BACKENDS
+#define MA_ENABLE_PULSEAUDIO
+#define MA_NO_MP3
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 

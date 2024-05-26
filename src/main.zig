@@ -14,6 +14,7 @@ const log = @import("log.zig");
 const Ase = @import("ase.zig").Ase;
 const pipeline = @import("pipeline/pipeline.zig");
 const gen = @import("gen.zig");
+const audio = @import("audio.zig");
 
 const WINDOW_WIDTH = 1280;
 const WINDOW_HEIGHT = 720;
@@ -25,6 +26,8 @@ pub fn main() !void {
     log.info("starting ronin...", .{});
     const alloc = std.heap.page_allocator;
 
+    try audio.init(alloc);
+    audio.play(.speech);
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
     const ase = try Ase.fromFile(alloc, "./assets/sprites/face.ase");
     defer ase.deinit();
