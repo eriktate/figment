@@ -90,6 +90,7 @@ function gl3w() {
 }
 
 function miniaudio() {
+	patch -p 1 -N < patch.diff
 	cp $VENDOR_PATH/miniaudio/miniaudio.h $VENDOR_INCLUDE
 }
 
@@ -103,7 +104,7 @@ function stb() {
 
 dep=$1
 
-echo $dep
+echo "Building $dep"
 case $dep in
 	"sdl")
 		sdl

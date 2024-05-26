@@ -169,3 +169,13 @@ pub fn genAnimationCode(ctx: Context) !void {
     try writeAnimationArray(ctx);
     try writeGetAnimFn(ctx);
 }
+
+pub fn run() !void {
+    const alloc = std.heap.page_allocator;
+    var ctx = try Context.init(alloc);
+    defer ctx.deinit();
+
+    try processFolder(&ctx, "./assets/sprites/");
+    try writeBitmap(ctx, "./assets/sprites/atlas.png");
+    try genAnimationCode(ctx);
+}

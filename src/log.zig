@@ -47,3 +47,7 @@ var global_log: Logger = Logger{
 pub fn info(comptime format: []const u8, args: anytype) void {
     global_log.info(format, args);
 }
+
+pub fn err(comptime format: []const u8, args: anytype) void {
+    global_log.err(format, args);
+}
