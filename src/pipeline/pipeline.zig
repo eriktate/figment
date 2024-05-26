@@ -33,7 +33,6 @@ pub const Context = struct {
     bitmap: []ase.RGBA,
     file: std.fs.File,
     offset: usize,
-    free_areas: std.ArrayList(Box),
 
     pub fn init(alloc: std.mem.Allocator) !Context {
         const bitmap = try alloc.alloc(ase.RGBA, BITMAP_WIDTH * BITMAP_HEIGHT);
