@@ -13,7 +13,8 @@ const BITMAP_WIDTH = 1024;
 const BITMAP_HEIGHT = 1024;
 const PADDING = 2;
 
-const GEN_OUTPUT_PATH = "./src/gen.zig";
+const GEN_FINAL_PATH = "./src/gen.zig";
+const GEN_OUTPUT_PATH = GEN_FINAL_PATH ++ ".tmp";
 const HEADER = "// DO NOT EDIT! This file is generated each time the asset pipeline runs and any manual changes will be overwritten\n\nconst std = @import(\"std\");\nconst sprite = @import(\"sprite.zig\");\nconst render = @import(\"render/render.zig\");\n\n";
 
 pub const Animation = struct {
@@ -168,6 +169,9 @@ pub fn genAnimationCode(ctx: Context) !void {
     try writeAnimationEnum(ctx);
     try writeAnimationArray(ctx);
     try writeGetAnimFn(ctx);
+
+    try std.fs.cwd().deleteFile(GEN_FINAL_PATH);
+    try std.fs.cwd().rename(GEN_OUTPUT_PATH, GEN_FINAL_PATH);
 }
 
 pub fn run() !void {
