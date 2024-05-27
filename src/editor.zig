@@ -13,7 +13,6 @@ const Texture = @import("render/texture.zig");
 const sprite = @import("sprite.zig");
 const log = @import("log.zig");
 const Ase = @import("ase.zig").Ase;
-const apl = @import("pipeline/run.zig");
 const gen = @import("gen.zig");
 const audio = @import("audio.zig");
 
@@ -27,7 +26,6 @@ pub fn run() !void {
     const alloc = std.heap.page_allocator;
 
     try audio.init(alloc);
-    _ = audio.play(.speech);
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
     const ase = try Ase.fromFile(alloc, "./assets/sprites/face.ase");
     defer ase.deinit();
@@ -120,6 +118,10 @@ pub fn run() !void {
 
         if (ctrl.getInput(.jump).pressed) {
             _ = audio.play(.speech);
+        }
+
+        if (ctrl.getInput(.attack).pressed) {
+            _ = audio.play(.bark);
         }
 
         quads[0] = face_spr.toQuad();
