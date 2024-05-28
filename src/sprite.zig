@@ -1,31 +1,40 @@
+const std = @import("std");
 const render = @import("render/render.zig");
 
 pub const Frame = struct {
     tex_pos: render.TexPos,
     w: u16,
     h: u16,
-    duration: u32 = 1,
+    duration: u16 = 16, // in ms
 };
 
 pub const Animation = struct {
-    frames: []Frame,
+    frames: []const Frame,
     current_frame: f32,
     frame_rate: f32,
 
+    pub fn init(frames: []const Frame) Animation {
+        return .{
+            .frames = frames,
+            .current_frame = 0,
+            .frame_rate = 1,
+        };
+    }
+
     fn getFrame(self: Animation) Frame {
-        return self.frames[@intFromFloat(self.current_frame)];
+        const idx: usize = @intFromFloat(self.current_frame);
+        return self.frames[idx % self.frames.len];
     }
 
     fn tick(self: *Animation, dt: f32) void {
-        self.current_frame += dt * self.frame_rate;
-
         const frame_idx: usize = @intFromFloat(self.current_frame);
+        const frame = self.frames[frame_idx];
+        const dur: f32 = @floatFromInt(frame.duration);
+        self.current_frame += dt * self.frame_rate / (dur / 1000);
 
-        if (frame_idx > self.frames.len) {
-            const new_base_frame: f32 = @floatFromInt(frame_idx % self.frames.len);
-            const remainder: f32 = self.current_frame - frame_idx;
-
-            self.current_frame = new_base_frame + remainder;
+        const frame_len: f32 = @floatFromInt(self.frames.len);
+        if (self.current_frame >= frame_len) {
+            self.current_frame = @mod(self.current_frame, frame_len);
         }
     }
 };
@@ -66,7 +75,15 @@ pub const Sprite = struct {
     pub fn tick(self: *Sprite, dt: f32) void {
         switch (self.source) {
             .animation => |*anim| anim.tick(dt),
-            .frame => null,
+            .frame => {},
         }
     }
+
+    pub fn setAnimation(self: *Sprite, frames: []const Frame) void {
+        self.source = makeAnimation(frames);
+    }
 };
+
+pub fn makeAnimation(frames: []const Frame) Source {
+    return .{ .animation = Animation.init(frames) };
+}

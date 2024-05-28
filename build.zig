@@ -1,5 +1,6 @@
 const std = @import("std");
 const Backend = @import("src/window.zig").Backend;
+const Mode = @import("src/lib.zig").Mode;
 
 const vendor_lib = "vendor/lib";
 const vendor_include = "vendor/include";
@@ -10,7 +11,9 @@ const vendor_include = "vendor/include";
 pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     const backend = b.option(Backend, "backend", "windowing and input backend to use (default: glfw, sdl)");
+    const mode = b.option(Mode, "mode", "mode that the exe should start up in (default: editor, pipeline, game)");
     options.addOption(Backend, "backend", backend orelse Backend.glfw);
+    options.addOption(Mode, "mode", mode orelse Mode.editor);
 
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
