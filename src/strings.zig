@@ -1,5 +1,9 @@
 const std = @import("std");
 
+const StringsErr = error{
+    Empty,
+};
+
 pub fn hasPrefix(prefix: []const u8, string: []const u8) bool {
     if (string.len < prefix.len) {
         return false;
@@ -42,6 +46,16 @@ pub fn stripSuffix(suffix: []const u8, string: []const u8) []const u8 {
     }
 
     return string[0 .. string.len - suffix.len];
+}
+
+pub fn splitLast(string: []const u8, sep: []const u8) ![]const u8 {
+    var parts = std.mem.splitSequence(u8, string, sep);
+    var result: []const u8 = parts.next() orelse return StringsErr.Empty;
+    while (parts.next()) |part| {
+        result = part;
+    }
+
+    return result;
 }
 
 pub fn copy(alloc: std.mem.Allocator, string: []const u8) ![]u8 {
@@ -173,4 +187,13 @@ test "strings.toUpper" {
     defer t.allocator.free(upper_string);
 
     try t.expect(std.mem.eql(u8, upper_string, "HEL10!"));
+}
+
+test "strings.splitLast" {
+    const t = std.testing;
+
+    const string = "this/is/a/test/path";
+    const name = try splitLast(string, "/");
+
+    try t.expect(std.mem.eql(u8, name, "path"));
 }

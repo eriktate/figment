@@ -82,6 +82,13 @@ pub const Sprite = struct {
     pub fn setAnimation(self: *Sprite, frames: []const Frame) void {
         self.source = makeAnimation(frames);
     }
+
+    pub fn setFrameRate(self: *Sprite, frame_rate: f32) void {
+        switch (self.source) {
+            .animation => self.source.animation.frame_rate = frame_rate,
+            .frame => {},
+        }
+    }
 };
 
 pub fn makeAnimation(frames: []const Frame) Source {

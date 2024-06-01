@@ -1,6 +1,7 @@
 const std = @import("std");
 const zlib = std.compress.zlib;
 const c = @import("c.zig");
+const log = @import("log.zig");
 
 const AseErr = error{
     HeaderMagicNumber,
@@ -81,7 +82,7 @@ const ChunkType = enum(WORD) {
     tileset = 0x2023,
 };
 
-const Header = struct {
+pub const Header = struct {
     file_size: DWORD,
     magic_number: WORD,
     frames: WORD,
@@ -102,6 +103,14 @@ const Header = struct {
     grid_width: WORD,
     grid_height: WORD,
     future: [84]BYTE,
+
+    pub fn fromFile(path: []const u8) !Header {
+        const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+        defer file.close();
+
+        const stream = file.reader().any();
+        return try parseHeader(stream);
+    }
 };
 
 const FrameHeader = struct {
@@ -352,7 +361,7 @@ pub const Ase = struct {
         return ase;
     }
 
-    pub fn renderFrame(ase: Ase, frame_idx: usize, bitmap: []RGBA, canvas_width: usize) !void {
+    pub fn renderFrame(ase: Ase, frame_idx: usize, bitmap: []?RGBA, canvas_width: usize) !void {
         if (frame_idx >= ase.frames.len) {
             return AseErr.FrameOutOfBounds;
         }
@@ -371,7 +380,7 @@ pub const Ase = struct {
 
                                 const origin = y * canvas_width + x;
                                 const offset = (idx / width) * canvas_width + idx % width;
-                                const current_pixel = bitmap[origin + offset];
+                                const current_pixel = bitmap[origin + offset] orelse .{ 0, 0, 0, 0 };
                                 bitmap[origin + offset] = blend(layer.blend_mode, pixel, current_pixel);
                             }
                         },
@@ -453,9 +462,18 @@ pub const Ase = struct {
     fn parseChunk(ase: *Ase, stream: std.io.AnyReader) !Chunk {
         const alloc = ase.arena.allocator();
 
+        const size = try readCast(DWORD, stream);
+        const ty = try readCast(WORD, stream);
+        log.info("chunk size={d} type={x}", .{ size, ty });
+        // var chunk = Chunk{
+        //     .size = try readCast(DWORD, stream),
+        //     .type = @enumFromInt(try readCast(WORD, stream)),
+        //     .chunk = undefined,
+        // };
+
         var chunk = Chunk{
-            .size = try readCast(DWORD, stream),
-            .type = @enumFromInt(try readCast(WORD, stream)),
+            .size = size,
+            .type = @enumFromInt(ty),
             .chunk = undefined,
         };
 
@@ -488,6 +506,8 @@ pub const Ase = struct {
             .data = undefined,
         };
 
+        // const skip_len: u64 = chunk_size - @sizeOf(DWORD) - @sizeOf(WORD) * 3 - @sizeOf(SHORT) * 3 - @sizeOf(BYTE) * 6;
+        // try stream.skipBytes(skip_len, .{});
         cel.data = switch (cel.type) {
             .raw => .{ .raw = try ase.parsePixelCel(stream, false) },
             .linked => .{ .linked = LinkedCel{ .frame_pos = try readCast(WORD, stream) } },
@@ -498,6 +518,7 @@ pub const Ase = struct {
             ) },
         };
 
+        log.info("parsing cel chunk: {any} {d}", .{ cel, ase.header.width });
         return cel;
     }
 
@@ -509,14 +530,20 @@ pub const Ase = struct {
             .pixels = undefined,
         };
 
-        const raw_pixels = try alloc.alloc(u8, cel.width * cel.height * (@intFromEnum(ase.header.color_depth) / 8));
+        const cel_width: usize = @intCast(cel.width);
+        const cel_height: usize = @intCast(cel.height);
+        const depth: usize = @intCast(@intFromEnum(ase.header.color_depth));
+        const raw_pixels = try alloc.alloc(u8, cel_width * cel_height * (depth / 8));
 
         if (compressed) {
+            var bytes_read: usize = 0;
             var zstream = zlib.decompressor(stream);
             // defer zstream.deinit();
-            _ = try zstream.read(raw_pixels);
+            while (bytes_read < raw_pixels.len) {
+                bytes_read += try zstream.read(raw_pixels[bytes_read..]);
+            }
             // there's a zlib checksum at the end of the compressed data that we can
-            // validate and by reading one more byte from the stream (this also progresses
+            // validate by reading one more byte from the stream (this also progresses
             // our stream to the next chunk/frame in the file)
             var buf: [1]u8 = undefined;
             _ = try zstream.read(buf[0..]);
