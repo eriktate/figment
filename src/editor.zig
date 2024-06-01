@@ -16,10 +16,10 @@ const Ase = @import("ase.zig").Ase;
 const gen = @import("gen.zig");
 const audio = @import("audio.zig");
 
-const WINDOW_WIDTH = 1280;
-const WINDOW_HEIGHT = 720;
-const VIEW_WIDTH = 640;
-const VIEW_HEIGHT = 360;
+const WINDOW_WIDTH = 960;
+const WINDOW_HEIGHT = 540;
+const VIEW_WIDTH = 960;
+const VIEW_HEIGHT = 540;
 
 pub fn run() !void {
     log.info("starting editor...", .{});
@@ -27,29 +27,7 @@ pub fn run() !void {
 
     try audio.init(alloc);
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
-    const ase = try Ase.fromFile(alloc, "./assets/sprites/face.ase");
-    defer ase.deinit();
 
-    for (ase.frames) |frame| {
-        for (frame.chunks) |chunk| {
-            switch (chunk.chunk) {
-                .tags => |tags| {
-                    for (tags.tags) |tag| {
-                        log.info("{s} {d}-{d}", .{ tag.name, tag.from_frame, tag.to_frame });
-                    }
-                },
-                else => {},
-            }
-        }
-    }
-
-    const canvas_width: c_int = @intCast(ase.header.width * ase.frames.len);
-    const pixels = try ase.renderSheet(alloc);
-    _ = c.stbi_write_png("./face.png", canvas_width, @intCast(ase.header.height), 4, @ptrCast(pixels.ptr), canvas_width * 4);
-
-    // const face_idle = gen.getAnim(.face_idle);
-    // log.info("{any}", .{face_idle[0]});
-    // input_mgr should generally be the first thing initialized
     try input_mgr.init(alloc);
     var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
     defer win.deinit();
@@ -59,22 +37,18 @@ pub fn run() !void {
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
     _ = try Texture.fromFile(alloc, "./assets/sprites/atlas.png");
 
-    // const face_blink = sprite.Animation.init(gen.getAnim(.face_idle));
-
-    // const red_face_blink = sprite.Animation.init(gen.getAnim(.red_face_blink));
+    var background = sprite.Sprite{
+        .pos = render.Pos.init(0, 0, 0),
+        .width = 960,
+        .height = 540,
+        .source = .{ .frame = gen.getFrame(.bg_dungeon_flat) },
+    };
 
     var face_spr = sprite.Sprite{
         .pos = render.Pos.init(120, 120, 0),
         .width = 64,
         .height = 64,
         .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
-        // .source = .{
-        //     .frame = .{
-        //         .tex_pos = render.TexPos.init(0, 2),
-        //         .w = 32,
-        //         .h = 32,
-        //     },
-        // },
     };
     var face_copy = face_spr;
     face_copy.source = sprite.makeAnimation(gen.getAnim(.red_face_blink));
@@ -82,9 +56,29 @@ pub fn run() !void {
     face_copy.height = 128;
     face_copy.pos = render.Pos.init(240, 240, 0);
 
+    var dog_run = sprite.Sprite{
+        .pos = render.Pos.init(256, 120, 0),
+        .width = 128,
+        .height = 64,
+        .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
+    };
+
+    dog_run.setFrameRate(2);
+
+    var necro_idle = sprite.Sprite{
+        .pos = render.Pos.init(256 + 128, 120, 0),
+        .width = 128,
+        .height = 128,
+        .source = sprite.makeAnimation(gen.getAnim(.necromancer_idle)),
+    };
+    necro_idle.setFrameRate(1);
+
     var quads = [_]render.Quad{
+        background.toQuad(),
         face_spr.toQuad(),
         face_copy.toQuad(),
+        dog_run.toQuad(),
+        necro_idle.toQuad(),
     };
 
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -98,15 +92,15 @@ pub fn run() !void {
         defer last_time = current_time;
         current_time = win.getTime();
         dt = @floatCast(current_time - last_time);
+
         if (try win.poll()) |event| {
             try input_mgr.handleEvent(event);
-
-            // for (input_mgr.controllers.items) |*ctrl| {
-            //     ctrl.printState();
-            // }
         }
+
         face_spr.tick(dt);
         face_copy.tick(dt);
+        dog_run.tick(dt);
+        necro_idle.tick(dt);
         const ctrl = input_mgr.controllers.items[0];
         if (ctrl.getInput(.left).isActive()) {
             _ = face_spr.pos.addMut(render.Pos.init(-64, 0, 0).scale(dt));
@@ -124,8 +118,11 @@ pub fn run() !void {
             _ = audio.play(.bark);
         }
 
-        quads[0] = face_spr.toQuad();
-        quads[1] = face_copy.toQuad();
+        quads[0] = background.toQuad();
+        quads[1] = face_spr.toQuad();
+        quads[2] = face_copy.toQuad();
+        quads[3] = dog_run.toQuad();
+        quads[4] = necro_idle.toQuad();
         win.clear();
         try renderer.render(quads[0..]);
         win.swap();
