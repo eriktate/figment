@@ -48,10 +48,10 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addOptions("config", options);
-    exe.addIncludePath(.{ .path = vendor_include });
-    exe.addLibraryPath(.{ .path = vendor_lib });
+    exe.addIncludePath(b.path(vendor_include));
+    exe.addLibraryPath(b.path(vendor_lib));
     exe.addCSourceFile(.{
-        .file = .{ .path = "src/impl.c" },
+        .file = b.path("src/impl.c"),
         .flags = &.{},
     });
 
