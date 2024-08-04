@@ -2,7 +2,7 @@ const std = @import("std");
 const c = @import("c.zig");
 const log = @import("log.zig");
 
-const MAX_AUDIO_BUFFER_SIZE = 200 * 1024; // 100kb is the largest PCM buffer size allowed for in-memory buffer sources
+const MAX_AUDIO_BUFFER_SIZE = 20 * 1024 * 1024; // 4MB is the largest PCM buffer size allowed for in-memory buffer sources
 
 pub const AudioErr = error{
     DeviceInit,
@@ -16,6 +16,7 @@ pub const AudioErr = error{
 pub const Sound = enum {
     speech,
     bark,
+    bg_seeing_die_dog,
 };
 
 pub const State = enum {
@@ -144,10 +145,9 @@ pub fn init(allocator: std.mem.Allocator) !void {
         return AudioErr.DeviceStart;
     }
 
-    log.info("loading speech", .{});
     try initSound(.speech, "assets/sounds/speech.wav", null);
-    log.info("loading bark", .{});
     try initSound(.bark, "assets/sounds/bark.wav", null);
+    try initSound(.bg_seeing_die_dog, "assets/sounds/seeingdiedog.wav", null);
     for (active_sounds, 0..) |_, idx| {
         active_sounds[idx] = null;
     }
@@ -158,7 +158,6 @@ fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void
     const absolute_path = try std.fs.cwd().realpath(path, path_buf[0..]);
     path_buf[absolute_path.len] = 0;
     const decoder = try alloc.create(c.ma_decoder);
-    log.info("absolute: {s}", .{absolute_path});
     var dec_config = c.ma_decoder_config_init(c.ma_format_f32, @intCast(channels), 48000);
     dec_config.encodingFormat = c.ma_encoding_format_wav;
 
@@ -170,8 +169,7 @@ fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void
         return AudioErr.DecoderInit;
     }
 
-    // number of frames should always at least be less than the file length
-    const tmp = try alloc.alloc(f32, 1024 * 1024);
+    const tmp = try alloc.alloc(f32, MAX_AUDIO_BUFFER_SIZE);
     defer alloc.free(tmp);
 
     const frame_count = 1200;
@@ -184,8 +182,11 @@ fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void
         total_frames += frames_read;
     }
 
+    // forcing source_override to .buffer for now
+    const override = if (source_override == .buffer) SourceKind.buffer else SourceKind.buffer;
+
     // stream source
-    if (source_override == .stream or (source_override != .buffer and total_frames * channels * @sizeOf(f32) > MAX_AUDIO_BUFFER_SIZE)) {
+    if (override == .stream or (override != .buffer and total_frames * channels * @sizeOf(f32) > MAX_AUDIO_BUFFER_SIZE)) {
         log.info("setting {any} to stream", .{sound});
         _ = c.ma_decoder_seek_to_pcm_frame(decoder, 0);
         sources.set(sound, .{ .stream = .{ .stream = decoder } });
@@ -209,10 +210,10 @@ fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void
 }
 
 pub fn deinit() void {
-    c.ma_device_uninit(device);
-    for (sources) |source| {
+    c.ma_device_uninit(&device);
+    for (sources.values) |source| {
         switch (source) {
-            .stream => |stream| c.ma_decoder_uninit(stream.stream),
+            .stream => |stream| _ = c.ma_decoder_uninit(stream.stream),
             .buffer => |buf| alloc.free(buf.buf),
         }
     }
@@ -231,4 +232,33 @@ pub fn play(sound: Sound) *SoundIns {
 
     active_sounds[idx] = snd;
     return &active_sounds[idx].?;
+}
+
+pub fn loop(sound: Sound) *SoundIns {
+    var snd = SoundIns.init(sound);
+    snd.state = .loop;
+    var idx: usize = 0;
+    for (active_sounds) |active_snd| {
+        if (active_snd == null) {
+            break;
+        }
+
+        idx += 1;
+    }
+
+    active_sounds[idx] = snd;
+    return &active_sounds[idx].?;
+}
+
+pub fn memBytes() usize {
+    var bytes: usize = 0;
+
+    for (sources.values) |source| {
+        switch (source) {
+            .buffer => bytes += source.buffer.buf.len * @sizeOf(f32),
+            .stream => {},
+        }
+    }
+
+    return bytes;
 }

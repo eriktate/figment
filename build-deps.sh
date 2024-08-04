@@ -130,7 +130,7 @@ case $dep in
 	*)
 		glfw
 		libepoxy
-		freetype
+		# freetype
 		miniaudio
 		stb
 		# sdl

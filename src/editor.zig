@@ -26,8 +26,13 @@ pub fn run() !void {
     const alloc = std.heap.page_allocator;
 
     try audio.init(alloc);
+    defer audio.deinit();
+
+    const audioBytes: f32 = @floatFromInt(audio.memBytes());
+    log.info("memory reserved for sounds: {d}M", .{audioBytes / 1024 / 1024});
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
+    _ = audio.loop(.bg_seeing_die_dog);
     try input_mgr.init(alloc);
     var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
     defer win.deinit();

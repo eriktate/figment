@@ -1,3 +1,5 @@
+//! A basic quad renderer
+
 const std = @import("std");
 const c = @import("../c.zig");
 const dim = @import("../dim.zig");
@@ -6,6 +8,7 @@ const Shader = @import("../gl/shader.zig");
 const Vertex = @import("render.zig").Vertex;
 const Quad = @import("render.zig").Quad;
 
+/// The maximum number of quads expected to ever be rendered, used for pre-generating the element array.
 const MAX_QUADS = 50_000;
 
 const QuadRenderer = @This();
