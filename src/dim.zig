@@ -66,8 +66,28 @@ pub fn Vec(comptime T: type, comptime cardinality: u8, comptime Self: type) type
             return fromArray([1]T{0} ** cardinality);
         }
 
+        pub fn clamp(self: Self, other: Self) Self {
+            return fromSimd(@min(self.asSimd(), other.asSimd()));
+        }
+
         pub fn dot(self: Self, other: Self) T {
             return @sqrt(@reduce(.Add, self.asSimd() * other.asSimd()));
+        }
+
+        pub fn mul(self: Self, other: Self) Self {
+            return fromSimd(self.asSimd() * other.asSimd());
+        }
+
+        pub fn abs(self: Self) Self {
+            return fromSimd(@abs(self.asSimd()));
+        }
+
+        pub fn sign(self: Self) Self {
+            const zeroes = fromArray([1]T{0} ** cardinality);
+            const positives = fromArray([1]T{1} ** cardinality);
+            const negatives = fromArray([1]T{-1} ** cardinality);
+            const result = self.asSimd() < zeroes.asSimd();
+            return fromSimd(@select(T, result, negatives.asSimd(), positives.asSimd()));
         }
     };
 }

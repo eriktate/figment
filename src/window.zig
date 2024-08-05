@@ -76,9 +76,9 @@ pub const Window = struct {
         }
     }
 
-    pub fn setTitle(self: *Window, title: []u8) !void {
-        std.mem.copyForwards(u8, self.title, title);
-        self.title[title.len] = null;
+    pub fn setTitle(self: *Window, title: []const u8) !void {
+        std.mem.copyForwards(u8, &self.title, title);
+        self.title[title.len] = 0;
         switch (self.win) {
             .sdl => |backend| c.SDL_SetWindowTitle(backend.win, &self.title),
             .glfw => |backend| c.glfwSetWindowTitle(backend.win, &self.title),

@@ -161,3 +161,10 @@ pub fn captureGamepadState(ctrl: *controller.Controller) void {
 pub fn getTime() f64 {
     return c.glfwGetTime();
 }
+
+pub fn setTitle(win: ?*c.GLFWwindow, title: []const u8) void {
+    var buf: [256]u8 = undefined;
+    @memcpy(buf[0..], title);
+    buf[title.len] = 0;
+    c.glfwSetWindowTitle(win, buf[0..]);
+}

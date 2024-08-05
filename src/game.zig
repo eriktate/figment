@@ -21,7 +21,7 @@ pub const Game = struct {
     quads: std.ArrayList(render.Quad),
     entities: std.ArrayList(?Entity),
 
-    pub fn addEntity(self: *Game, entity: Entity) !*Entity {
+    pub fn spawn(self: *Game, entity: Entity) !*Entity {
         for (self.entities.items, 0..) |ent, idx| {
             if (ent == null) {
                 self.entities.items[idx] = entity;

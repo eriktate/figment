@@ -44,7 +44,7 @@ pub fn run() !void {
     _ = try Texture.fromFile(alloc, "./assets/sprites/atlas.png");
 
     // add background
-    _ = try g.addEntity(Entity.init().withSprite(sprite.Sprite{
+    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .pos = render.Pos.zero(),
         .width = 960,
         .height = 540,
@@ -52,14 +52,14 @@ pub fn run() !void {
     }));
 
     // add faces
-    _ = try g.addEntity(Entity.init().withSprite(sprite.Sprite{
+    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .pos = render.Pos.init(120, 120, 0),
         .width = 64,
         .height = 64,
         .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
     }));
 
-    _ = try g.addEntity(Entity.init().withSprite(sprite.Sprite{
+    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .pos = render.Pos.init(240, 240, 0),
         .width = 128,
         .height = 128,
@@ -67,7 +67,7 @@ pub fn run() !void {
     }));
 
     // add dog
-    var dog = try g.addEntity(Entity.init().withSprite(sprite.Sprite{
+    var dog = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .pos = render.Pos.init(256, 120, 0),
         .width = 128,
         .height = 64,
@@ -75,9 +75,10 @@ pub fn run() !void {
     }));
 
     dog.sprite.setFrameRate(6);
+    dog.max_speed = dim.Vec2(f32).init(64, 64);
 
     var player = Player.init(dog, &input_mgr.controllers.items[0]);
-    _ = try g.addEntity(Entity.init().withSprite(sprite.Sprite{
+    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .pos = render.Pos.init(256 + 128, 120, 0),
         .width = 128,
         .height = 128,
@@ -90,6 +91,8 @@ pub fn run() !void {
     var last_time = win.getTime();
     var current_time = win.getTime();
     var dt: f32 = 0;
+    var total_elapsed_time: f32 = 0;
+    var frames: usize = 0;
     while (!input_mgr.quit) {
         defer input_mgr.flush();
         defer last_time = current_time;
@@ -114,5 +117,15 @@ pub fn run() !void {
         try renderer.render(try g.genQuads());
         g.reset();
         win.swap();
+
+        frames += 1;
+        total_elapsed_time += dt;
+        if (total_elapsed_time >= 1) {
+            var buf: [256]u8 = undefined;
+            const title = try std.fmt.bufPrint(buf[0..], "Figment@{d}fps - *float*", .{frames});
+            try win.setTitle(title);
+            frames = 0;
+            total_elapsed_time = 0;
+        }
     }
 }

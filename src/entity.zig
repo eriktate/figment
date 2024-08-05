@@ -11,6 +11,8 @@ pos: Pos = Pos.zero(),
 box: Box = Box.init(0, 0),
 sprite: sprite.Sprite = sprite.Sprite{},
 speed: dim.Vec2(f32) = dim.Vec2(f32).zero(),
+/// defaults to 4k pixels because we don't want to limit speed by default
+max_speed: dim.Vec2(f32) = dim.Vec2(f32).init(1024 * 4, 1024 * 4),
 active: bool = true,
 
 pub fn init() Entity {
@@ -29,6 +31,9 @@ pub fn tick(self: *Entity, dt: f32) void {
     }
 
     self.sprite.tick(dt);
+
+    const abs_clamped_speed = self.speed.abs().clamp(self.max_speed);
+    self.speed = abs_clamped_speed.mul(self.speed.sign());
 
     self.pos = self.pos.add(Pos.init(self.speed.x, self.speed.y, 0).scale(dt));
 }

@@ -9,8 +9,8 @@ const dim = @import("../dim.zig");
 const c = @import("../c.zig");
 
 const INITIAL_ANIM_CAP = 512;
-const BITMAP_WIDTH = 1024;
-const BITMAP_HEIGHT = 1024;
+const BITMAP_WIDTH = 2048;
+const BITMAP_HEIGHT = 2048;
 const PADDING = 1;
 
 const GEN_FINAL_PATH = "./src/gen.zig";
