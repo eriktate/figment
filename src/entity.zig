@@ -1,4 +1,4 @@
-const render = @import("render/render.zig");
+const render = @import("render.zig");
 const Pos = render.Pos;
 const Box = @import("box.zig");
 const dim = @import("dim.zig");

@@ -1,5 +1,5 @@
 const std = @import("std");
-const render = @import("render/render.zig");
+const render = @import("render.zig");
 const c = @import("c.zig");
 const cast = @import("cast.zig");
 const log = @import("log.zig");

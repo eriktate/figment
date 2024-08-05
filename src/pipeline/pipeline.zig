@@ -1,7 +1,7 @@
 const std = @import("std");
 const fmt = std.fmt;
 const sprite = @import("../sprite.zig");
-const render = @import("../render/render.zig");
+const render = @import("../render.zig");
 const ase = @import("../ase.zig");
 const strings = @import("../strings.zig");
 const log = @import("../log.zig");
@@ -15,7 +15,7 @@ const PADDING = 1;
 
 const GEN_FINAL_PATH = "./src/gen.zig";
 const GEN_OUTPUT_PATH = GEN_FINAL_PATH ++ ".tmp";
-const HEADER = "// DO NOT EDIT! This file is generated each time the asset pipeline runs and any manual changes will be overwritten\n\nconst std = @import(\"std\");\nconst sprite = @import(\"sprite.zig\");\nconst render = @import(\"render/render.zig\");\n\n";
+const HEADER = "// DO NOT EDIT! This file is generated each time the asset pipeline runs and any manual changes will be overwritten\n\nconst std = @import(\"std\");\nconst sprite = @import(\"sprite.zig\");\nconst render = @import(\"render.zig\");\n\n";
 
 pub const Animation = struct {
     name: []u8,

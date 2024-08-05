@@ -2,7 +2,7 @@
 
 const std = @import("std");
 const sprite = @import("sprite.zig");
-const render = @import("render/render.zig");
+const render = @import("render.zig");
 
 pub const Anim = enum {
     portal_closed,

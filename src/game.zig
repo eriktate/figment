@@ -1,6 +1,6 @@
 const std = @import("std");
 const log = @import("log.zig");
-const render = @import("render/render.zig");
+const render = @import("render.zig");
 const Entity = @import("entity.zig");
 
 const GameErr = error{

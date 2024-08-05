@@ -3,8 +3,8 @@ const dim = @import("../dim.zig");
 const gl = @import("../gl.zig");
 
 const Shader = gl.Shader;
-const Vertex = @import("render.zig").Vertex;
-const Quad = @import("render.zig").Quad;
+const Vertex = @import("quad.zig").Vertex;
+const Quad = @import("quad.zig").Quad;
 
 /// The maximum number of quads expected to ever be rendered, used for pre-generating the element array.
 const MAX_QUADS = 50_000;

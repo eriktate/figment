@@ -2,7 +2,7 @@
 //! written in terms of sprites, frames, and animations rather than textures, regions, and quads.
 
 const std = @import("std");
-const render = @import("render/render.zig");
+const render = @import("render.zig");
 
 /// Represents a region within a texture to be rendered. The optional `duration` field is only used when the playing
 /// an `Animation`. When rendering a static sprite, a single `Frame` is used.

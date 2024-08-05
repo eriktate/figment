@@ -1,5 +1,5 @@
 const c = @import("c.zig");
-const Color = @import("render/render.zig").Color;
+const Color = @import("render.zig").Color;
 
 // re-exports
 pub const VAO = @import("gl/vao.zig");
