@@ -1,3 +1,4 @@
+const std = @import("std");
 const dim = @import("../dim.zig");
 
 pub const Pos = dim.Vec3(f32);
@@ -71,5 +72,25 @@ pub const Quad = extern struct {
     pub fn setPos(self: *Quad, pos: Pos) void {
         const diff = pos.sub(self.tl.pos);
         self.translate(diff);
+    }
+};
+
+pub const QuadBatch = struct {
+    quads: std.ArrayList(Quad),
+
+    pub fn init(alloc: std.mem.Allocator, initialCap: usize) !QuadBatch {
+        return QuadBatch{
+            .quads = try std.ArrayList(Quad).initCapacity(alloc, initialCap),
+        };
+    }
+
+    pub fn clear(self: *QuadBatch) void {
+        self.quads.items.len = 0;
+    }
+
+    pub inline fn push(self: *QuadBatch, quad: ?Quad) void {
+        if (quad) |q| {
+            self.quads.append(q);
+        }
     }
 };

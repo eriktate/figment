@@ -1,4 +1,5 @@
 const std = @import("std");
+const log = @import("../log.zig");
 const c = @import("../c.zig");
 
 const BufferKind = enum {
@@ -90,8 +91,10 @@ pub inline fn bind(self: VAO) void {
     c.glBindVertexArray(self.id);
 }
 
-pub inline fn unbind(_: VAO) void {
+pub inline fn unbind(vao: VAO) void {
     c.glBindVertexArray(0);
+    vao.vbo.unbind();
+    vao.ebo.unbind();
 }
 
 pub fn genBuffer(kind: BufferKind) Buffer {
@@ -104,29 +107,28 @@ pub fn genBuffer(kind: BufferKind) Buffer {
     };
 }
 
-pub fn setElements(self: VAO, indices: []u32) void {
+pub fn setIndices(self: VAO, indices: []u32) void {
     self.bind();
     self.ebo.bind();
 
-    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), indices.ptr, c.GL_DYNAMIC_DRAW);
+    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), indices.ptr, c.GL_STREAM_DRAW);
 }
 
 pub fn setVertices(self: VAO, T: type, data: []T) void {
     self.bind();
+    self.vbo.bind();
     setVertexData(T, data);
 }
 
 pub fn draw(self: VAO, T: type, data: []T, elements_per_item: usize) void {
-    self.bind();
-    self.vbo.bind();
+    self.setVertices(T, data);
     self.ebo.bind();
-    setVertexData(T, data);
     drawElements(@intCast(data.len * elements_per_item));
     self.unbind();
 }
 
 fn setVertexData(T: type, data: []T) void {
-    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(data.len * @sizeOf(T)), data.ptr, c.GL_DYNAMIC_DRAW);
+    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(data.len * @sizeOf(T)), data.ptr, c.GL_STREAM_DRAW);
 }
 
 inline fn drawElements(elements: usize) void {

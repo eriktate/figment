@@ -2,6 +2,8 @@ const std = @import("std");
 
 const Pos = @import("render/render.zig").Pos;
 
+/// A simple box with overlap checking. When owned by an `Entity` the `pos` field may actually describe an offset
+/// from the entity's `pos`.
 pub const Box = @This();
 pos: Pos,
 w: f32,

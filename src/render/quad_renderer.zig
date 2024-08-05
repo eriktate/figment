@@ -49,7 +49,7 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
     renderer.vao.addAttr(u16, 2, @sizeOf(Vertex), tex_offset);
     renderer.vao.addAttr(u8, 4, @sizeOf(Vertex), color_offset);
 
-    renderer.vao.setElements(indices);
+    renderer.vao.setIndices(indices);
     renderer.indices = indices;
 
     renderer.vao.unbind();

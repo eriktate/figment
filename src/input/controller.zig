@@ -17,6 +17,7 @@ const Action = enum {
     attack,
     duck,
 
+    // should these be in a separate list of actions?
     debug,
     camera,
     flood_fill,

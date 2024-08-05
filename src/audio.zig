@@ -151,6 +151,9 @@ pub fn init(allocator: std.mem.Allocator) !void {
     for (active_sounds, 0..) |_, idx| {
         active_sounds[idx] = null;
     }
+
+    const audioBytes: f32 = @floatFromInt(memBytes());
+    log.info("memory reserved for sounds: {d}M", .{audioBytes / 1024 / 1024});
 }
 
 fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void {

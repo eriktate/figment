@@ -51,37 +51,40 @@ pub const Animation = struct {
 pub const SourceType = enum {
     frame,
     animation,
+    none,
 };
 
 pub const Source = union(SourceType) {
     frame: Frame,
     animation: Animation,
+    none: void,
 };
 
 /// Fundamental 2D rendering primitive. The `pos`, `width`, and `height` determine the exact area the sprite should be
 /// rendered in pixels. The dimensions of the underlying `source` will be scaled to the `width` and `height` of the
 /// `Sprite`.
 pub const Sprite = struct {
-    pos: render.Pos,
-    width: u32,
-    height: u32,
-    source: Source,
+    pos: render.Pos = render.Pos.zero(),
+    width: u32 = 0,
+    height: u32 = 0,
+    source: Source = .{ .none = {} },
 
-    pub fn getFrame(self: Sprite) Frame {
+    pub fn getFrame(self: Sprite) ?Frame {
         return switch (self.source) {
             .frame => |frame| frame,
             .animation => |anim| anim.getFrame(),
+            .none => null,
         };
     }
 
-    pub fn toQuad(self: Sprite) render.Quad {
-        const frame = self.getFrame();
+    pub fn toQuad(self: Sprite, offset: render.Pos) ?render.Quad {
+        const frame = self.getFrame() orelse return null;
         const w: f32 = @floatFromInt(self.width);
         const h: f32 = @floatFromInt(self.height);
         const tex_tl = frame.tex_pos;
         const tex_br = frame.tex_pos.add(render.TexPos.init(frame.w, frame.h));
 
-        return render.Quad.init(self.pos, w, h).withTex(tex_tl, tex_br);
+        return render.Quad.init(self.pos.add(offset), w, h).withTex(tex_tl, tex_br);
     }
 
     /// Mostly a proxy for calling `anim.tick()` in the case of an animated `Sprite`, which handles all of the
@@ -89,13 +92,21 @@ pub const Sprite = struct {
     pub fn tick(self: *Sprite, dt: f32) void {
         switch (self.source) {
             .animation => |*anim| anim.tick(dt),
-            .frame => {},
+            else => {},
         }
     }
 
     /// Sets the source of the `Sprite` to a new `Animation` tracking against the given `frames`.
     pub fn setAnimation(self: *Sprite, frames: []const Frame) void {
-        self.source = makeAnimation(frames);
+        switch (self.source) {
+            .animation => |anim| {
+                if (anim.frames == frames) {
+                    return;
+                }
+                self.source = makeAnimation(frames);
+            },
+            else => self.source = makeAnimation(frames),
+        }
     }
 
     /// Set the source of the `Sprite` to the given `Frame`.
@@ -107,7 +118,7 @@ pub const Sprite = struct {
     pub fn setFrameRate(self: *Sprite, frame_rate: f32) void {
         switch (self.source) {
             .animation => self.source.animation.frame_rate = frame_rate,
-            .frame => {},
+            else => {},
         }
     }
 };
