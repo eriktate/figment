@@ -1,21 +1,18 @@
-//! A basic quad renderer
-
 const std = @import("std");
-const c = @import("../c.zig");
 const dim = @import("../dim.zig");
+const gl = @import("../gl.zig");
 
-const Shader = @import("../gl/shader.zig");
+const Shader = gl.Shader;
 const Vertex = @import("render.zig").Vertex;
 const Quad = @import("render.zig").Quad;
 
 /// The maximum number of quads expected to ever be rendered, used for pre-generating the element array.
 const MAX_QUADS = 50_000;
 
+/// A basic quad renderer that uses a single VAO and draw call.
 const QuadRenderer = @This();
 shader: Shader,
-vao: u32,
-vbo: u32,
-ebo: u32,
+vao: gl.VAO,
 
 indices: []u32,
 alloc: std.mem.Allocator,
@@ -25,29 +22,6 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
     var shader = try Shader.init(vs_path, fs_path);
     renderer.shader = shader;
     shader.use();
-
-    c.glGenVertexArrays(1, &renderer.vao);
-
-    c.glGenBuffers(1, &renderer.vbo);
-
-    c.glGenBuffers(1, &renderer.ebo);
-
-    c.glBindVertexArray(renderer.vao);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, renderer.vbo);
-
-    c.glEnableVertexAttribArray(0);
-    c.glEnableVertexAttribArray(1);
-    c.glEnableVertexAttribArray(2);
-
-    const pos_offset = @offsetOf(Vertex, "pos");
-    const tex_offset = @offsetOf(Vertex, "tex_pos");
-    const color_offset = @offsetOf(Vertex, "color");
-
-    c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, @sizeOf(Vertex), @ptrFromInt(pos_offset));
-    c.glVertexAttribIPointer(1, 2, c.GL_UNSIGNED_SHORT, @sizeOf(Vertex), @ptrFromInt(tex_offset));
-    c.glVertexAttribIPointer(2, 4, c.GL_UNSIGNED_BYTE, @sizeOf(Vertex), @ptrFromInt(color_offset));
-
-    c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, renderer.ebo);
 
     // indices are always the same, so we can precompute their value
     // and buffer them once
@@ -65,10 +39,20 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
         indices[index + 5] = vertex + 2;
     }
 
+    renderer.vao = gl.VAO.init();
+
+    const pos_offset = @offsetOf(Vertex, "pos");
+    const tex_offset = @offsetOf(Vertex, "tex_pos");
+    const color_offset = @offsetOf(Vertex, "color");
+
+    renderer.vao.addAttr(f32, 3, @sizeOf(Vertex), pos_offset);
+    renderer.vao.addAttr(u16, 2, @sizeOf(Vertex), tex_offset);
+    renderer.vao.addAttr(u8, 4, @sizeOf(Vertex), color_offset);
+
+    renderer.vao.setElements(indices);
     renderer.indices = indices;
 
-    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @intCast(MAX_QUADS * 6 * @sizeOf(u32)), indices.ptr, c.GL_DYNAMIC_DRAW);
-    c.glBindVertexArray(0);
+    renderer.vao.unbind();
     return renderer;
 }
 
@@ -77,13 +61,8 @@ pub fn deinit(self: *QuadRenderer) void {
 }
 
 pub fn render(self: *QuadRenderer, quads: []Quad) !void {
-    c.glBindVertexArray(self.vao);
-    c.glBindBuffer(c.GL_ARRAY_BUFFER, self.vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(quads.len * @sizeOf(Quad)), quads.ptr, c.GL_DYNAMIC_DRAW);
-    c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, self.ebo);
     self.shader.use();
-    c.glDrawElements(c.GL_TRIANGLES, @intCast(quads.len * 6), c.GL_UNSIGNED_INT, null);
-    c.glBindVertexArray(0);
+    self.vao.draw(Quad, quads, 6);
 }
 
 pub fn setWorldDimensions(self: *QuadRenderer, width: u16, height: u16) !void {

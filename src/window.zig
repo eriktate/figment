@@ -5,6 +5,7 @@ const glfw = @import("glfw.zig");
 const input_mgr = @import("input/manager.zig");
 const events = @import("input/events.zig");
 const config = @import("config");
+const gl = @import("gl.zig");
 
 pub const WindowErr = error{
     // SDL backend
@@ -182,11 +183,11 @@ pub fn init(w: u16, h: u16, title: []const u8, opts: Opts) !Window {
 
     window.win = if (config.backend == .sdl) try initSDL(window) else try initGLFW(window);
 
-    c.glViewport(0, 0, w, h);
+    gl.viewport(0, 0, w, h);
 
     // Blend settings should probably be managed by the renderer
-    c.glEnable(c.GL_BLEND);
-    c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA);
+    gl.enable(.blend);
+    gl.blendFunc(.src_alpha, .one_minus_src_alpha);
 
     return window;
 }

@@ -1,6 +1,5 @@
 const std = @import("std");
 const config = @import("config");
-const c = @import("c.zig");
 const sdl = @import("sdl.zig");
 const window = @import("window.zig");
 const dim = @import("dim.zig");
