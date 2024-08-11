@@ -25,6 +25,14 @@ pub fn initAt(pos: Pos, w: f32, h: f32) Box {
     };
 }
 
+pub fn at(self: Box, pos: Pos) Box {
+    return Box{
+        .pos = self.pos.add(pos),
+        .w = self.w,
+        .h = self.h,
+    };
+}
+
 pub fn overlaps(self: Box, other: Box) bool {
     return !(self.pos.x > other.pos.x + other.w or self.pos.x + self.w < other.pos.x or self.pos.y + self.h < other.pos.y or self.pos.y > other.pos.y + other.h);
 }

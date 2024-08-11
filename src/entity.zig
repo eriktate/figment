@@ -32,7 +32,13 @@ pub fn withSprite(self: Entity, spr: sprite.Sprite) Entity {
     return ent;
 }
 
-pub fn tick(self: *Entity, dt: f32) void {
+pub fn withBox(self: Entity, box: Box) Entity {
+    var ent = self;
+    ent.box = box;
+    return ent;
+}
+
+pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
     if (!self.active) {
         return;
     }
@@ -42,7 +48,15 @@ pub fn tick(self: *Entity, dt: f32) void {
     const abs_clamped_speed = self.speed.abs().clamp(self.max_speed);
     self.speed = abs_clamped_speed.mul(self.speed.sign());
 
-    self.pos = self.pos.add(Pos.init(self.speed.x, self.speed.y, 0).scale(dt));
+    var new_pos = self.pos.add(Pos.init(self.speed.x, self.speed.y, 0).scale(dt));
+    if (self.solid) {
+        if (self.collisionAt(new_pos, entities)) |ent| {
+            log.info("Collision between {d} and {d}", .{ self.id, ent.id });
+            new_pos = self.pos;
+        }
+    }
+
+    self.pos = new_pos;
 }
 
 pub fn toQuad(self: Entity) ?render.Quad {
@@ -51,4 +65,25 @@ pub fn toQuad(self: Entity) ?render.Quad {
     }
 
     return self.sprite.toQuad(self.pos);
+}
+
+pub fn getBox(self: Entity) Box {
+    return self.box.at(self.pos);
+}
+
+pub fn collisionAt(self: Entity, pos: Pos, entities: []Entity) ?Entity {
+    var self_box = self.box.at(pos);
+
+    for (entities) |entity| {
+        const other_box = entity.getBox();
+        if (other_box.w == 0 and other_box.h == 0) {
+            continue;
+        }
+
+        if (self_box.overlaps(other_box)) {
+            return entity;
+        }
+    }
+
+    return null;
 }

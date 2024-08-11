@@ -17,6 +17,7 @@ const audio = @import("audio.zig");
 const game = @import("game.zig");
 const Entity = @import("entity.zig");
 const Player = @import("player.zig");
+const Box = @import("box.zig");
 
 const WINDOW_WIDTH = 960;
 const WINDOW_HEIGHT = 540;
@@ -51,18 +52,26 @@ pub fn run() !void {
     }));
 
     // add faces
-    _ = try g.spawn(Entity.initAt(render.Pos.init(120, 120, 0)).withSprite(sprite.Sprite{
-        .width = 64,
-        .height = 64,
-        .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
-    }));
+    _ = try g.spawn(
+        Entity.initAt(render.Pos.init(120, 120, 0)).withSprite(
+            sprite.Sprite{
+                .width = 64,
+                .height = 64,
+                .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
+            },
+        ).withBox(Box.init(64, 64)),
+    );
 
-    _ = try g.spawn(Entity.initAt(render.Pos.init(240, 240, 0))
-        .withSprite(sprite.Sprite{
-        .width = 128,
-        .height = 128,
-        .source = sprite.makeAnimation(gen.getAnim(.red_face_blink)),
-    }));
+    _ = try g.spawn(
+        Entity.initAt(render.Pos.init(240, 240, 0))
+            .withSprite(
+            sprite.Sprite{
+                .width = 128,
+                .height = 128,
+                .source = sprite.makeAnimation(gen.getAnim(.red_face_blink)),
+            },
+        ).withBox(Box.init(128, 128)),
+    );
 
     // add dog
     var dog = try g.spawn(
@@ -74,7 +83,7 @@ pub fn run() !void {
                 .height = 64,
                 .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
             },
-        ),
+        ).withBox(Box.init(128, 64)),
     );
 
     dog.sprite.setFrameRate(6);
@@ -114,7 +123,7 @@ pub fn run() !void {
 
         // update entities
         for (g.entities.itemsMut()) |*ent| {
-            ent.tick(dt);
+            ent.tick(dt, g.entities.itemsMut());
         }
 
         try g.ySort();
