@@ -6,6 +6,7 @@ const sprite = @import("sprite.zig");
 const log = @import("log.zig");
 
 pub const Entity = @This();
+id: usize = 0,
 solid: bool = false,
 pos: Pos = Pos.zero(),
 box: Box = Box.init(0, 0),
@@ -17,6 +18,12 @@ active: bool = true,
 
 pub fn init() Entity {
     return Entity{};
+}
+
+pub fn initAt(pos: Pos) Entity {
+    return Entity{
+        .pos = pos,
+    };
 }
 
 pub fn withSprite(self: Entity, spr: sprite.Sprite) Entity {

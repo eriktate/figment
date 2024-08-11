@@ -21,7 +21,7 @@ fn ensureItemHasID(typ: type) void {
     }
 }
 
-pub fn SparseSet(T: type) type {
+pub fn Set(T: type) type {
     ensureItemHasID(T);
 
     return struct {
@@ -40,13 +40,13 @@ pub fn SparseSet(T: type) type {
         pub fn initCapacity(alloc: std.mem.Allocator, cap: usize) !Self {
             return Self{
                 .data = try std.ArrayList(T).initCapacity(alloc, cap),
-                .lookup = try std.ArrayList(usize).initCapacity(alloc, cap),
+                .lookup = try std.ArrayList(?usize).initCapacity(alloc, cap),
             };
         }
 
         /// Adds an item to the SparseSet. The current implementation technically leaks memory because the sparse
         /// lookup only grows and makes no attempt at re-using previous indices.
-        pub fn add(self: *Self, item: T) !T {
+        pub fn add(self: *Self, item: T) !*T {
             const id = self.lookup.items.len;
             const idx = self.data.items.len;
             var copy = item;
@@ -55,7 +55,7 @@ pub fn SparseSet(T: type) type {
             try self.data.append(copy);
             try self.lookup.append(idx);
 
-            return copy;
+            return &self.data.items[idx];
         }
 
         pub fn remove(self: *Self, id: usize) !void {
@@ -80,7 +80,7 @@ pub fn SparseSet(T: type) type {
             self.data.items.len -= 1;
         }
 
-        pub fn get(self: Self, id: usize) !?T {
+        pub inline fn get(self: Self, id: usize) !?T {
             if (id >= self.lookup.items.len) {
                 return SparseSetErr.IDOutOfBounds;
             }
@@ -89,7 +89,7 @@ pub fn SparseSet(T: type) type {
             return self.data.items[idx];
         }
 
-        pub fn getMut(self: *Self, id: usize) !?*T {
+        pub inline fn getMut(self: *Self, id: usize) !?*T {
             if (id >= self.lookup.items.len) {
                 return SparseSetErr.IDOutOfBounds;
             }
@@ -103,7 +103,7 @@ pub fn SparseSet(T: type) type {
         }
 
         pub inline fn itemsMut(self: *Self) []T {
-            return &self.data.items;
+            return self.data.items;
         }
 
         /// Swaps two items within the dense set, preserving sparse lookups. Can be used to implement a sort
@@ -132,7 +132,7 @@ test "SparseSet" {
     const alloc = t.allocator;
     const Entity = @import("entity.zig");
 
-    var set = SparseSet(Entity).init(alloc);
+    var set = Set(Entity).init(alloc);
     defer set.deinit();
 
     const entity0 = try set.add(Entity.init());

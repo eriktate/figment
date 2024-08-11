@@ -45,45 +45,51 @@ pub fn run() !void {
 
     // add background
     _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
-        .pos = render.Pos.zero(),
         .width = 960,
         .height = 540,
         .source = .{ .frame = gen.getFrame(.bg_dungeon_flat) },
     }));
 
     // add faces
-    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
-        .pos = render.Pos.init(120, 120, 0),
+    _ = try g.spawn(Entity.initAt(render.Pos.init(120, 120, 0)).withSprite(sprite.Sprite{
         .width = 64,
         .height = 64,
         .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
     }));
 
-    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
-        .pos = render.Pos.init(240, 240, 0),
+    _ = try g.spawn(Entity.initAt(render.Pos.init(240, 240, 0))
+        .withSprite(sprite.Sprite{
         .width = 128,
         .height = 128,
         .source = sprite.makeAnimation(gen.getAnim(.red_face_blink)),
     }));
 
     // add dog
-    var dog = try g.spawn(Entity.init().withSprite(sprite.Sprite{
-        .pos = render.Pos.init(256, 120, 0),
-        .width = 128,
-        .height = 64,
-        .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
-    }));
+    var dog = try g.spawn(
+        Entity.initAt(render.Pos.init(256, 120, 0))
+            .withSprite(
+            sprite.Sprite{
+                .pos = .{ .y = -64 },
+                .width = 128,
+                .height = 64,
+                .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
+            },
+        ),
+    );
 
     dog.sprite.setFrameRate(6);
-    dog.max_speed = dim.Vec2(f32).init(64, 64);
+    // dog.max_speed = dim.Vec2(f32).init(64, 64);
 
-    var player = Player.init(dog, &input_mgr.controllers.items[0]);
-    _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
-        .pos = render.Pos.init(256 + 128, 120, 0),
-        .width = 128,
-        .height = 128,
-        .source = sprite.makeAnimation(gen.getAnim(.necromancer_idle)),
-    }));
+    var player = Player.init(dog.id, &input_mgr.controllers.items[0]);
+    _ = try g.spawn(Entity.initAt(render.Pos.init(256 + 128, 120, 0))
+        .withSprite(
+        sprite.Sprite{
+            .pos = .{ .y = -128 },
+            .width = 128,
+            .height = 128,
+            .source = sprite.makeAnimation(gen.getAnim(.necromancer_idle)),
+        },
+    ));
 
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -104,15 +110,14 @@ pub fn run() !void {
         }
 
         // update player
-        player.tick(dt);
+        try player.tick(dt);
 
         // update entities
-        for (g.entities.items) |*opt_ent| {
-            if (opt_ent.*) |*ent| {
-                ent.tick(dt);
-            }
+        for (g.entities.itemsMut()) |*ent| {
+            ent.tick(dt);
         }
 
+        try g.ySort();
         win.clear();
         try renderer.render(try g.genQuads());
         g.reset();

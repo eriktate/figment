@@ -1,35 +1,42 @@
 const Entity = @import("entity.zig");
 const Controller = @import("input/controller.zig").Controller;
 const audio = @import("audio.zig");
+const game = @import("game.zig");
+
+const PlayerErr = error{
+    EntityNotFound,
+};
 
 const Player = @This();
-ent: *Entity,
+id: usize,
 ctrl: *Controller,
 
-pub fn init(ent: *Entity, ctrl: *Controller) Player {
+pub fn init(id: usize, ctrl: *Controller) Player {
     return Player{
-        .ent = ent,
+        .id = id,
         .ctrl = ctrl,
     };
 }
 
-pub fn tick(self: *Player, _: f32) void {
-    self.ent.speed = .{ .x = 0, .y = 0 };
+pub fn tick(self: *Player, _: f32) !void {
+    var g = try game.getGame();
+    var ent = (try g.getEntityMut(self.id)) orelse return PlayerErr.EntityNotFound;
+    ent.speed = .{ .x = 0, .y = 0 };
 
     if (self.ctrl.getInput(.left).isActive()) {
-        self.ent.speed.x = -128;
+        ent.speed.x = -128;
     }
 
     if (self.ctrl.getInput(.right).isActive()) {
-        self.ent.speed.x = 128;
+        ent.speed.x = 128;
     }
 
     if (self.ctrl.getInput(.jump).isActive()) {
-        self.ent.speed.y = -128;
+        ent.speed.y = -128;
     }
 
     if (self.ctrl.getInput(.duck).isActive()) {
-        self.ent.speed.y = 128;
+        ent.speed.y = 128;
     }
 
     if (self.ctrl.getInput(.attack).pressed) {
