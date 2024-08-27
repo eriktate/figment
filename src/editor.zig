@@ -5,6 +5,7 @@ const window = @import("window.zig");
 const dim = @import("dim.zig");
 const render = @import("render.zig");
 const QuadRenderer = render.QuadRenderer;
+const DebugRenderer = render.DebugRenderer;
 const Texture = render.Texture;
 const Shader = @import("gl/shader.zig");
 const input_mgr = @import("input/manager.zig");
@@ -42,6 +43,7 @@ pub fn run() !void {
     log.info("window initialized", .{});
 
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
+    var debug = try DebugRenderer.init(alloc, "./shaders/debug_vs.glsl", "./shaders/debug_fs.glsl");
     _ = try Texture.fromFile(alloc, "./assets/sprites/atlas.png");
 
     // add background
@@ -66,11 +68,12 @@ pub fn run() !void {
         Entity.initAt(render.Pos.init(240, 240, 0))
             .withSprite(
             sprite.Sprite{
+                .pos = .{ .y = -128 },
                 .width = 128,
                 .height = 128,
                 .source = sprite.makeAnimation(gen.getAnim(.red_face_blink)),
             },
-        ).withBox(Box.init(128, 128)),
+        ).withBox(Box.initAt(.{ .y = -48 }, 128, 48)),
     );
 
     // add dog
@@ -83,13 +86,24 @@ pub fn run() !void {
                 .height = 64,
                 .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
             },
-        ).withBox(Box.init(128, 64)),
+        ).withBox(Box.initAt(.{ .y = -32 }, 128, 32)),
     );
+
+    var witch = try g.spawn(
+        Entity.initAt(render.Pos.init(512, 512, 0))
+            .withSprite(sprite.Sprite{
+            .pos = .{ .y = -48 },
+            .width = 48,
+            .height = 48,
+            .source = sprite.makeAnimation(gen.getAnim(.witch_idle_bounce)),
+        }).withBox(Box.initAt(.{ .x = 17, .y = -8 }, 14, 8)),
+    );
+    witch.setScale(.{ .x = 4, .y = 4 });
 
     dog.sprite.setFrameRate(6);
     // dog.max_speed = dim.Vec2(f32).init(64, 64);
 
-    var player = Player.init(dog.id, &input_mgr.controllers.items[0]);
+    var player = Player.init(witch.id, &input_mgr.controllers.items[0]);
     _ = try g.spawn(Entity.initAt(render.Pos.init(256 + 128, 120, 0))
         .withSprite(
         sprite.Sprite{
@@ -101,6 +115,7 @@ pub fn run() !void {
     ));
 
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
+    try debug.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     log.info("game initialized", .{});
     var last_time = win.getTime();
@@ -124,16 +139,19 @@ pub fn run() !void {
         // update entities
         for (g.entities.itemsMut()) |*ent| {
             ent.tick(dt, g.entities.itemsMut());
+            try ent.drawDebug(&debug);
         }
 
         try g.ySort();
         win.clear();
         try renderer.render(try g.genQuads());
+        try debug.render();
         g.reset();
         win.swap();
 
         frames += 1;
         total_elapsed_time += dt;
+        try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
         if (total_elapsed_time >= 1) {
             var buf: [256]u8 = undefined;
             const title = try std.fmt.bufPrint(buf[0..], "Figment@{d}fps - *float*", .{frames});

@@ -74,3 +74,8 @@ pub const Quad = extern struct {
         self.translate(diff);
     }
 };
+
+pub const Line = extern struct {
+    from: Vertex,
+    to: Vertex,
+};

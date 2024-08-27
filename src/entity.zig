@@ -48,11 +48,16 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
     const abs_clamped_speed = self.speed.abs().clamp(self.max_speed);
     self.speed = abs_clamped_speed.mul(self.speed.sign());
 
-    var new_pos = self.pos.add(Pos.init(self.speed.x, self.speed.y, 0).scale(dt));
-    if (self.solid) {
-        if (self.collisionAt(new_pos, entities)) |ent| {
-            log.info("Collision between {d} and {d}", .{ self.id, ent.id });
-            new_pos = self.pos;
+    const speed = Pos.init(self.speed.x, self.speed.y, 0).scale(dt);
+    var new_pos = self.pos.add(speed);
+    if (self.collisionAt(new_pos, entities) != null) {
+        new_pos = self.pos;
+        if (self.collisionAt(self.pos.add(.{ .x = speed.x }), entities) == null) {
+            new_pos = self.pos.add(.{ .x = speed.x });
+        }
+
+        if (self.collisionAt(self.pos.add(.{ .y = speed.y }), entities) == null) {
+            new_pos = self.pos.add(.{ .y = speed.y });
         }
     }
 
@@ -75,6 +80,10 @@ pub fn collisionAt(self: Entity, pos: Pos, entities: []Entity) ?Entity {
     var self_box = self.box.at(pos);
 
     for (entities) |entity| {
+        if (entity.id == self.id) {
+            continue;
+        }
+
         const other_box = entity.getBox();
         if (other_box.w == 0 and other_box.h == 0) {
             continue;
@@ -86,4 +95,15 @@ pub fn collisionAt(self: Entity, pos: Pos, entities: []Entity) ?Entity {
     }
 
     return null;
+}
+
+pub fn setScale(self: *Entity, scale: dim.Vec2(f32)) void {
+    self.sprite.setScale(scale);
+    self.box.setScale(scale);
+}
+
+pub fn drawDebug(self: Entity, debug: *render.DebugRenderer) !void {
+    if (self.box.w != 0 and self.box.h != 0) {
+        try self.getBox().drawDebug(debug);
+    }
 }

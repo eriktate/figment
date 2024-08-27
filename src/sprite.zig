@@ -3,6 +3,7 @@
 
 const std = @import("std");
 const render = @import("render.zig");
+const dim = @import("dim.zig");
 
 /// Represents a region within a texture to be rendered. The optional `duration` field is only used when the playing
 /// an `Animation`. When rendering a static sprite, a single `Frame` is used.
@@ -65,8 +66,10 @@ pub const Source = union(SourceType) {
 /// `Sprite`.
 pub const Sprite = struct {
     pos: render.Pos = render.Pos.zero(),
-    width: u32 = 0,
-    height: u32 = 0,
+    width: f32 = 0,
+    height: f32 = 0,
+    h_flip: bool = false,
+    v_flip: bool = false,
     source: Source = .{ .none = {} },
 
     pub fn getFrame(self: Sprite) ?Frame {
@@ -79,10 +82,15 @@ pub const Sprite = struct {
 
     pub fn toQuad(self: Sprite, offset: render.Pos) ?render.Quad {
         const frame = self.getFrame() orelse return null;
-        const w: f32 = @floatFromInt(self.width);
-        const h: f32 = @floatFromInt(self.height);
-        const tex_tl = frame.tex_pos;
-        const tex_br = frame.tex_pos.add(render.TexPos.init(frame.w, frame.h));
+        const w: f32 = self.width;
+        const h: f32 = self.height;
+        var tex_tl = frame.tex_pos;
+        var tex_br = frame.tex_pos.add(render.TexPos.init(frame.w, frame.h));
+
+        if (self.h_flip) {
+            tex_tl.x = tex_br.x;
+            tex_br.x = frame.tex_pos.x;
+        }
 
         return render.Quad.init(self.pos.add(offset), w, h).withTex(tex_tl, tex_br);
     }
@@ -100,7 +108,7 @@ pub const Sprite = struct {
     pub fn setAnimation(self: *Sprite, frames: []const Frame) void {
         switch (self.source) {
             .animation => |anim| {
-                if (anim.frames == frames) {
+                if (anim.frames.ptr == frames.ptr and anim.frames.len == frames.len) {
                     return;
                 }
                 self.source = makeAnimation(frames);
@@ -120,6 +128,12 @@ pub const Sprite = struct {
             .animation => self.source.animation.frame_rate = frame_rate,
             else => {},
         }
+    }
+
+    pub fn setScale(self: *Sprite, scale: dim.Vec2(f32)) void {
+        self.pos = self.pos.mul(render.Pos.init(scale.x, scale.y, 1));
+        self.width *= scale.x;
+        self.height *= scale.y;
     }
 };
 

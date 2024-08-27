@@ -1,4 +1,6 @@
 const std = @import("std");
+const render = @import("render.zig");
+const dim = @import("dim.zig");
 
 const Pos = @import("render.zig").Pos;
 
@@ -31,6 +33,24 @@ pub fn at(self: Box, pos: Pos) Box {
         .w = self.w,
         .h = self.h,
     };
+}
+
+pub fn setScale(self: *Box, scale: dim.Vec2(f32)) void {
+    self.pos = self.pos.mul(render.Pos.init(scale.x, scale.y, 1));
+    self.w *= scale.x;
+    self.h *= scale.y;
+}
+
+pub fn drawDebug(self: Box, debug: *render.DebugRenderer) !void {
+    const tl = self.pos;
+    const tr = self.pos.add(.{ .x = self.w });
+    const bl = self.pos.add(.{ .y = self.h });
+    const br = self.pos.add(.{ .x = self.w, .y = self.h });
+
+    try debug.pushLine(tl, tr);
+    try debug.pushLine(tr, br);
+    try debug.pushLine(br, bl);
+    try debug.pushLine(bl, tl);
 }
 
 pub fn overlaps(self: Box, other: Box) bool {

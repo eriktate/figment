@@ -45,6 +45,15 @@ function glfw() {
 	cd -
 }
 
+function glfw-win() {
+	dir=/tmp/glfw-win
+	version=3.4
+	mkdir -p $dir
+	curl -L -o $dir/glfw-win.zip "https://github.com/glfw/glfw/releases/download/${version}/glfw-${version}.bin.WIN64.zip"
+	pushd $dir
+	unzip glfw-win.zip
+}
+
 function libepoxy() {
 	EPOXY_PATH=$VENDOR_PATH/libepoxy
 	EPOXY_BUILD_PATH=$VENDOR_BUILD_PATH/libepoxy
@@ -112,6 +121,9 @@ case $dep in
 	"glfw")
 		glfw
 		;;
+	"glfw-win")
+		glfw-win
+		;;
 	"libepoxy")
 		libepoxy
 		;;
@@ -129,6 +141,7 @@ case $dep in
 		;;
 	*)
 		glfw
+		glfw-win
 		libepoxy
 		# freetype
 		miniaudio

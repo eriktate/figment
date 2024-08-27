@@ -2,6 +2,11 @@ const std = @import("std");
 const log = @import("../log.zig");
 const c = @import("../c.zig");
 
+const DrawMode = enum(c_uint) {
+    lines = c.GL_LINES,
+    triangles = c.GL_TRIANGLES,
+};
+
 const BufferKind = enum {
     vertex,
     element,
@@ -120,10 +125,16 @@ pub fn setVertices(self: VAO, T: type, data: []T) void {
     setVertexData(T, data);
 }
 
-pub fn draw(self: VAO, T: type, data: []T, elements_per_item: usize) void {
+pub fn draw(self: VAO, T: type, mode: DrawMode, data: []T) void {
+    self.setVertices(T, data);
+    _draw(mode);
+    self.unbind();
+}
+
+pub fn drawIndices(self: VAO, T: type, mode: DrawMode, data: []T, indices_per_item: usize) void {
     self.setVertices(T, data);
     self.ebo.bind();
-    drawElements(@intCast(data.len * elements_per_item));
+    _drawIndices(mode, @intCast(data.len * indices_per_item));
     self.unbind();
 }
 
@@ -131,6 +142,11 @@ fn setVertexData(T: type, data: []T) void {
     c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(data.len * @sizeOf(T)), data.ptr, c.GL_STREAM_DRAW);
 }
 
-inline fn drawElements(elements: usize) void {
-    c.glDrawElements(c.GL_TRIANGLES, @intCast(elements), c.GL_UNSIGNED_INT, null);
+inline fn _draw(mode: DrawMode) void {
+    // TODO (soggy): this probably shouldn't be 0
+    c.glDrawArrays(@intFromEnum(mode), c.GL_UNSIGNED_INT, 0);
+}
+
+inline fn _drawIndices(mode: DrawMode, indices: usize) void {
+    c.glDrawElements(@intFromEnum(mode), @intCast(indices), c.GL_UNSIGNED_INT, null);
 }

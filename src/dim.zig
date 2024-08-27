@@ -50,7 +50,7 @@ pub fn Vec(comptime T: type, comptime cardinality: u8, comptime Self: type) type
             return self;
         }
 
-        pub fn mag(self: Self) Self {
+        pub fn mag(self: Self) T {
             return @sqrt(@reduce(.Add, self.asSimd() * self.asSimd()));
         }
 

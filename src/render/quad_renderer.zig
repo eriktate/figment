@@ -3,8 +3,8 @@ const dim = @import("../dim.zig");
 const gl = @import("../gl.zig");
 
 const Shader = gl.Shader;
-const Vertex = @import("quad.zig").Vertex;
-const Quad = @import("quad.zig").Quad;
+const Vertex = @import("primitives.zig").Vertex;
+const Quad = @import("primitives.zig").Quad;
 
 /// The maximum number of quads expected to ever be rendered, used for pre-generating the element array.
 const MAX_QUADS = 50_000;
@@ -23,6 +23,16 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
     renderer.shader = shader;
     shader.use();
 
+    renderer.vao = gl.VAO.init();
+
+    const pos_offset = @offsetOf(Vertex, "pos");
+    const tex_offset = @offsetOf(Vertex, "tex_pos");
+    const color_offset = @offsetOf(Vertex, "color");
+
+    renderer.vao.addAttr(f32, 3, @sizeOf(Vertex), pos_offset);
+    renderer.vao.addAttr(u16, 2, @sizeOf(Vertex), tex_offset);
+    renderer.vao.addAttr(u8, 4, @sizeOf(Vertex), color_offset);
+
     // indices are always the same, so we can precompute their value
     // and buffer them once
     var indices = try alloc.alloc(u32, MAX_QUADS * 6);
@@ -39,16 +49,6 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
         indices[index + 5] = vertex + 2;
     }
 
-    renderer.vao = gl.VAO.init();
-
-    const pos_offset = @offsetOf(Vertex, "pos");
-    const tex_offset = @offsetOf(Vertex, "tex_pos");
-    const color_offset = @offsetOf(Vertex, "color");
-
-    renderer.vao.addAttr(f32, 3, @sizeOf(Vertex), pos_offset);
-    renderer.vao.addAttr(u16, 2, @sizeOf(Vertex), tex_offset);
-    renderer.vao.addAttr(u8, 4, @sizeOf(Vertex), color_offset);
-
     renderer.vao.setIndices(indices);
     renderer.indices = indices;
 
@@ -62,7 +62,7 @@ pub fn deinit(self: *QuadRenderer) void {
 
 pub fn render(self: *QuadRenderer, quads: []Quad) !void {
     self.shader.use();
-    self.vao.draw(Quad, quads, 6);
+    self.vao.drawIndices(Quad, .triangles, quads, 6);
 }
 
 pub fn setWorldDimensions(self: *QuadRenderer, width: u16, height: u16) !void {
