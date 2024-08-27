@@ -95,6 +95,8 @@ function freetype() {
 function gl3w() {
 	cd ./vendor/gl3w
 	./gl3w_gen.py
+	cp -r include/GL/ $VENDOR_PATH/include/
+	cp src/gl3w.c $VENDOR_PATH/src/
 	cd -
 }
 

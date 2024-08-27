@@ -55,13 +55,19 @@ pub fn build(b: *std.Build) void {
         .flags = &.{},
     });
 
+    exe.addCSourceFile(.{
+        .file = b.path("vendor/src/gl3w.c"),
+        .flags = &.{},
+    });
+
     exe.linkLibC();
-    exe.linkSystemLibrary("pthread");
+    // exe.linkSystemLibrary("pthread");
     exe.linkSystemLibrary("m");
-    exe.linkSystemLibrary("epoxy");
+    // exe.linkSystemLibrary("epoxy");
+    // exe.linkSystemLibrary("gl3w");
     exe.linkSystemLibrary("glfw3");
     exe.linkSystemLibrary("SDL2");
-    exe.linkSystemLibrary("freetype");
+    // exe.linkSystemLibrary("freetype");
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

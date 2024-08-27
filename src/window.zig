@@ -162,9 +162,14 @@ fn initGLFW(window: Window) !BackendWindow {
 
     c.glfwMakeContextCurrent(win);
 
+    if (c.gl3wInit() != 0) {
+        return WindowErr.GLInit;
+    }
+
     if (!window.opts.vsync) {
         c.glfwSwapInterval(0);
     }
+
     glfw.setKeyCallback(win, input_mgr.glfwKeyCallback);
     return .{ .glfw = .{ .win = win } };
 }
