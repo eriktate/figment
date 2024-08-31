@@ -162,6 +162,10 @@ fn initGLFW(window: Window) !BackendWindow {
 
     c.glfwMakeContextCurrent(win);
 
+    if (c.gl3wInit() == 1) {
+        return WindowErr.GLInit;
+    }
+
     if (!window.opts.vsync) {
         c.glfwSwapInterval(0);
     }

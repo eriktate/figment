@@ -4,8 +4,7 @@ pub usingnamespace @cImport({
     // @cDefine("MA_ENABLE_PULSEAUDIO", "");
     @cInclude("miniaudio.h");
 
-    @cInclude("epoxy/gl.h");
-    // @cInclude("GL/gl3w.h");
+    @cInclude("GL/gl3w.h");
     @cInclude("SDL2/SDL.h");
     @cInclude("GLFW/glfw3.h");
     @cInclude("stb_image.h");

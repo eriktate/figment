@@ -4,6 +4,7 @@ const Mode = @import("src/lib.zig").Mode;
 
 const vendor_lib = "vendor/lib";
 const vendor_include = "vendor/include";
+const vendor_src = "vendor/src";
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -55,10 +56,14 @@ pub fn build(b: *std.Build) void {
         .flags = &.{},
     });
 
+    exe.addCSourceFile(.{
+        .file = b.path(vendor_src ++ "/gl3w.c"),
+        .flags = &.{},
+    });
+
     exe.linkLibC();
     exe.linkSystemLibrary("pthread");
     exe.linkSystemLibrary("m");
-    exe.linkSystemLibrary("epoxy");
     exe.linkSystemLibrary("glfw3");
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("freetype");
