@@ -4,3 +4,4 @@ zig-out/
 vendor/build/
 vendor/lib/
 vendor/include/
+vendor/src/
