@@ -1,6 +1,6 @@
-const mwl = @import("mwl.zig");
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("../../c.zig");
+const mwl = @import("mwl.zig");
 
 const XErr = error{
     // Target errors
@@ -31,6 +31,7 @@ const EGL = struct {
     ctx: c.EGLContext,
 
     pub fn init(win: Window) !EGL {
+        std.log.info("INIT MWL", .{});
         const display = c.eglGetDisplay(win._target.display);
         if (display == c.EGL_NO_DISPLAY) {
             return XErr.GetDisplayEGL;
@@ -132,6 +133,7 @@ pub const Window = struct {
     }
 
     pub fn flush(self: Window) XErr!void {
+        _ = c.eglSwapBuffers(self._egl.display, self._egl.surface);
         return self._target.flush();
     }
 

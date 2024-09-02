@@ -1,26 +1,11 @@
 const std = @import("std");
 const Platform = @import("src/platform.zig").Platform;
 const native_os = @import("builtin").os.tag;
-
-fn getPlatformFromNative(comptime target: std.Target.Os.Tag) Platform {
-    return switch (target) {
-        .linux => .x11,
-        .windows => .win32,
-        .macos => .appkit,
-        else => @compileError("target os not supported"),
-    };
-}
+const mythic = @import("../mythic.zig");
 
 pub const Options = struct {
-    platform: Platform = getPlatformFromNative(native_os),
+    platform: Platform = mythic.getPlatformFromNative(native_os),
 };
-
-pub fn addMWL(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, options: Options) !*std.Build.Step.Compile {
-    const mwl_dep = b.dependency("mwl", .{});
-    const mwl = mwl_dep.artifact("mwl");
-
-    return mwl;
-}
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -28,7 +13,7 @@ pub fn addMWL(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     const platform = b.option(Platform, "platform", "Target window system that should be built against (default: <detected>, x11, wayland, win32, appkit)");
-    options.addOption(Platform, "platform", platform orelse getPlatformFromNative(native_os));
+    options.addOption(Platform, "platform", platform orelse mythic.getPlatformFromNative(native_os));
 
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
