@@ -1,48 +1,38 @@
 const std = @import("std");
 const Backend = @import("src/window.zig").Backend;
 const Mode = @import("src/lib.zig").Mode;
+const mythic = @import("src/mythic.zig");
+const native_os = @import("builtin").os.tag;
 
 const vendor_lib = "vendor/lib";
 const vendor_include = "vendor/include";
 const vendor_src = "vendor/src";
 
+pub const Options = struct {
+    backend: Backend = .mwl,
+    mode: Mode = .editor,
+    platform: mythic.Platform = mythic.getPlatformFromNative(native_os),
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    const defaults = Options{};
+    const build_opts = Options{
+        .backend = b.option(Backend, "backend", "windowing and input backend to use (default: mwl, glfw, sdl)") orelse defaults.backend,
+        .mode = b.option(Mode, "mode", "mode that the exe should start up in (default: editor, pipeline, game)") orelse defaults.mode,
+        .platform = b.option(mythic.Platform, "platform", "platform that should be built against, which also defines the windowing system used (default: <detected>, x11, wayland, win32, appkit)") orelse defaults.platform,
+    };
     const options = b.addOptions();
-    const backend = b.option(Backend, "backend", "windowing and input backend to use (default: glfw, sdl)");
-    const mode = b.option(Mode, "mode", "mode that the exe should start up in (default: editor, pipeline, game)");
-    options.addOption(Backend, "backend", backend orelse Backend.glfw);
-    options.addOption(Mode, "mode", mode orelse Mode.editor);
 
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
+    options.addOption(Options, "opts", build_opts);
+
     const target = b.standardTargetOptions(.{});
-
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "figment",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // This declares intent for the library to be installed into the standard
-    // location when the user invokes the "install" step (the default step when
-    // running `zig build`).
-    b.installArtifact(lib);
-
     const exe = b.addExecutable(.{
-        .name = "figment",
+        .name = "mythic",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
@@ -62,15 +52,14 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibC();
+    exe.linkSystemLibrary("X11");
+    exe.linkSystemLibrary("EGL");
     exe.linkSystemLibrary("pthread");
     exe.linkSystemLibrary("m");
     exe.linkSystemLibrary("glfw3");
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("freetype");
 
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
     b.installArtifact(exe);
 
     // This *creates* a Run step in the build graph, to be executed when another

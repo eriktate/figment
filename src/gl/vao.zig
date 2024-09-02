@@ -1,6 +1,6 @@
 const std = @import("std");
-const log = @import("../log.zig");
 const c = @import("../c.zig");
+const log = @import("../log.zig");
 
 const DrawMode = enum(c_uint) {
     lines = c.GL_LINES,

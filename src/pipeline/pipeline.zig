@@ -1,4 +1,5 @@
 const std = @import("std");
+const c = @import("../c.zig");
 const fmt = std.fmt;
 const sprite = @import("../sprite.zig");
 const render = @import("../render.zig");
@@ -6,7 +7,6 @@ const ase = @import("../ase.zig");
 const strings = @import("../strings.zig");
 const log = @import("../log.zig");
 const dim = @import("../dim.zig");
-const c = @import("../c.zig");
 
 const INITIAL_ANIM_CAP = 512;
 const BITMAP_WIDTH = 2048;

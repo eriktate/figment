@@ -6,6 +6,7 @@ const input_mgr = @import("input/manager.zig");
 const events = @import("input/events.zig");
 const config = @import("config");
 const gl = @import("gl.zig");
+const mwl = @import("mwl/src/mwl.zig");
 
 pub const WindowErr = error{
     // SDL backend
@@ -39,6 +40,7 @@ pub const Opts = struct {
 pub const Backend = enum {
     sdl,
     glfw,
+    mwl,
 };
 
 const SDL_Window = struct {
@@ -53,6 +55,7 @@ const GLFW_Window = struct {
 const BackendWindow = union(Backend) {
     sdl: SDL_Window,
     glfw: GLFW_Window,
+    mwl: mwl.Window,
 };
 
 pub const Window = struct {
@@ -73,6 +76,9 @@ pub const Window = struct {
                 c.glfwDestroyWindow(backend.win);
                 c.glfwTerminate();
             },
+            .mwl => |backend| {
+                backend.deinit();
+            },
         }
     }
 
@@ -82,6 +88,7 @@ pub const Window = struct {
         switch (self.win) {
             .sdl => |backend| c.SDL_SetWindowTitle(backend.win, &self.title),
             .glfw => |backend| c.glfwSetWindowTitle(backend.win, &self.title),
+            .mwl => |*backend| try backend.setTitle(title),
         }
     }
 
@@ -92,6 +99,9 @@ pub const Window = struct {
             },
             .glfw => |backend| {
                 c.glfwSwapBuffers(backend.win);
+            },
+            .mwl => |backend| {
+                backend.flush() catch {};
             },
         }
     }
@@ -105,6 +115,7 @@ pub const Window = struct {
         return try switch (self.win) {
             .sdl => sdl.pollEvent(),
             .glfw => glfw.pollEvent(),
+            .mwl => null,
         };
     }
 
@@ -112,6 +123,7 @@ pub const Window = struct {
         return switch (self.win) {
             .glfw => glfw.getTime(),
             .sdl => sdl.getTime(),
+            .mwl => @floatFromInt(std.time.nanoTimestamp()),
         };
     }
 };
@@ -173,6 +185,27 @@ fn initGLFW(window: Window) !BackendWindow {
     return .{ .glfw = .{ .win = win } };
 }
 
+fn initMWL(window: Window) !BackendWindow {
+    std.log.info("initMWL", .{});
+    const win = try mwl.createWindow("mythic *float*", 0, 0, window.w, window.h, .{
+        .mode = .windowed,
+        .vsync = false,
+        .gl_major = 3,
+        .gl_minor = 3,
+    });
+
+    try win.makeContextCurrent();
+    if (c.gl3wInit() == 1) {
+        return WindowErr.GLInit;
+    }
+
+    if (c.gl3wIsSupported(3, 3) == 0) {
+        return WindowErr.GLInit;
+    }
+
+    return .{ .mwl = win };
+}
+
 pub fn init(w: u16, h: u16, title: []const u8, opts: Opts) !Window {
     var window = Window{
         .w = w,
@@ -185,7 +218,8 @@ pub fn init(w: u16, h: u16, title: []const u8, opts: Opts) !Window {
     std.mem.copyForwards(u8, &window.title, title);
     window.title[title.len] = 0;
 
-    window.win = if (config.backend == .sdl) try initSDL(window) else try initGLFW(window);
+    // window.win = if (config.opts.backend == .sdl) try initSDL(window) else try initGLFW(window);
+    window.win = try initMWL(window);
 
     gl.viewport(0, 0, w, h);
 
