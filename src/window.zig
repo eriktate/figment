@@ -6,7 +6,7 @@ const input_mgr = @import("input/manager.zig");
 const events = @import("input/events.zig");
 const config = @import("config");
 const gl = @import("gl.zig");
-const mwl = @import("mwl/src/mwl.zig");
+const mwl = @import("mwl/mwl.zig");
 
 pub const WindowErr = error{
     // SDL backend
@@ -123,7 +123,7 @@ pub const Window = struct {
         return switch (self.win) {
             .glfw => glfw.getTime(),
             .sdl => sdl.getTime(),
-            .mwl => @floatFromInt(std.time.nanoTimestamp()),
+            .mwl => mwl.getTime(),
         };
     }
 };

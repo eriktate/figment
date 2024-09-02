@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../../c.zig");
+const c = @import("../c.zig");
 const mwl = @import("mwl.zig");
 
 const XErr = error{
@@ -255,3 +255,5 @@ pub fn createWindow(title: []const u8, x: u16, y: u16, w: u16, h: u16, opts: mwl
 
     return win;
 }
+
+pub usingnamespace @import("x11/joystick.zig");

@@ -9,6 +9,11 @@ pub usingnamespace switch (config.opts.platform) {
     else => @compileError("unsupported platform"),
 };
 
+pub fn getTime() f64 {
+    const nano_f64: f64 = @floatFromInt(std.time.nanoTimestamp());
+    return nano_f64 / 1000 / 1000 / 1000;
+}
+
 pub const WinOpts = struct {
     vsync: bool = true,
     mode: Mode = .windowed,

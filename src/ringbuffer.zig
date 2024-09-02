@@ -54,10 +54,6 @@ pub fn RingBuffer(T: type) type {
     };
 }
 
-// 1
-// 1 2
-// 1 2 3
-// 4 2 3
 test "ring buffer" {
     const t = std.testing;
 
