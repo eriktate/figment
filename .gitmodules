@@ -26,3 +26,6 @@
 [submodule "vendor/gl3w"]
 	path = vendor/gl3w
 	url = https://github.com/skaslev/gl3w
+[submodule "vendor/SDL_GameControllerDB"]
+	path = vendor/SDL_GameControllerDB
+	url = https://github.com/mdqinc/SDL_GameControllerDB.git
