@@ -54,6 +54,7 @@ pub fn run() !void {
                 return;
             };
 
+            std.log.info("about to log from ring buffer", .{});
             std.log.info("id={d} name={s} type={any} number={d} value={d}", .{ ev.id, js.getName(), ev.type, ev.number, ev.value });
         }
     }

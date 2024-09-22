@@ -17,14 +17,14 @@ pub const EventType = enum(u8) {
 const RawEvent = extern struct {
     time: u32,
     value: i16,
-    type: EventType,
+    type: u8,
     number: u8,
 
     pub fn toJoystickEvent(self: RawEvent, id: usize) JoystickEvent {
         return .{
             .id = id,
             .time = self.time,
-            .type = self.type,
+            .type = @enumFromInt(self.type),
             .number = self.number,
             .value = self.value,
         };
@@ -80,7 +80,12 @@ pub const JoystickManager = struct {
     event_buffer: RingBuffer(JoystickEvent),
 
     pub fn init(alloc: std.mem.Allocator) !JoystickManager {
-        var mgr = JoystickManager{ .alloc = alloc, .joysticks = try std.ArrayList(Joystick).initCapacity(alloc, MAX_JOYSTICKS_ON_LINUX), .raw_buffer = std.mem.zeroes([MAX_INPUT_BUFFER]JoystickEvent), .event_buffer = undefined };
+        var mgr = JoystickManager{
+            .alloc = alloc,
+            .joysticks = try std.ArrayList(Joystick).initCapacity(alloc, MAX_JOYSTICKS_ON_LINUX),
+            .raw_buffer = undefined,
+            .event_buffer = undefined,
+        };
         mgr.event_buffer = RingBuffer(JoystickEvent).init(&mgr.raw_buffer);
 
         return mgr;
@@ -117,17 +122,17 @@ pub const JoystickManager = struct {
     }
 
     pub fn poll(self: *JoystickManager) !*RingBuffer(JoystickEvent) {
-        // TODO (soggy): can't produce a default zeroed JoystickEvent because there is no
-        // zero value for the EventType enum
-        var buf = std.mem.zeroes([@sizeOf(JoystickEvent) * 64]u8);
+        var buf = std.mem.zeroes([@sizeOf(RawEvent) * MAX_INPUT_BUFFER]u8);
 
         for (self.joysticks.items) |js| {
             const len = try js.fd.read(&buf);
             var offset: usize = 0;
 
             while (len - offset > 0) {
-                var ev: *RawEvent = @alignCast(@ptrCast(&buf));
-                offset += @sizeOf(JoystickEvent);
+                var ev: *RawEvent = @alignCast(@ptrCast(&buf[offset]));
+                std.log.info("raw event type={x}", .{ev.type});
+                std.log.info("joystick event={any}", .{ev.toJoystickEvent(js.id)});
+                offset += @sizeOf(RawEvent);
                 self.event_buffer.push(ev.toJoystickEvent(js.id));
             }
         }

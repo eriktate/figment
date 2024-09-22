@@ -19,7 +19,6 @@ pub fn RingBuffer(T: type) type {
         }
 
         pub fn push(self: *Self, item: T) void {
-            defer std.debug.print("push {any}: {any}\n", .{ item, self });
             if (self.end == self.buf.len) {
                 self.end = 0;
                 self.full = self.full or self.idx == 0;
@@ -35,10 +34,7 @@ pub fn RingBuffer(T: type) type {
         }
 
         pub fn next(self: *Self) ?T {
-            var item: ?T = undefined;
-            defer std.debug.print("next {any}: {any}\n", .{ item, self });
             if (!self.full and self.idx == self.end) {
-                item = null;
                 return null;
             }
 
@@ -46,7 +42,7 @@ pub fn RingBuffer(T: type) type {
                 self.idx = 0;
             }
 
-            item = self.buf[self.idx];
+            const item = self.buf[self.idx];
             self.idx += 1;
             self.full = false;
             return item;

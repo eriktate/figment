@@ -53,6 +53,7 @@ pub const Key = enum {
     backspace,
     semicolon,
     escape,
+    unknown,
 };
 
 pub const Button = enum {

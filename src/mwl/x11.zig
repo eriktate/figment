@@ -1,6 +1,10 @@
 const std = @import("std");
 const c = @import("../c.zig");
 const mwl = @import("mwl.zig");
+const input = @import("input.zig");
+const getKey = @import("x11/key.zig").getKey;
+const events = @import("../input/events.zig");
+const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
 
 const XErr = error{
     // Target errors
@@ -31,7 +35,6 @@ const EGL = struct {
     ctx: c.EGLContext,
 
     pub fn init(win: Window) !EGL {
-        std.log.info("INIT MWL", .{});
         const display = c.eglGetDisplay(win._target.display);
         if (display == c.EGL_NO_DISPLAY) {
             return XErr.GetDisplayEGL;
@@ -117,6 +120,8 @@ pub const Window = struct {
     _target: Target,
     _handle: c.Window,
     _egl: EGL,
+    _raw_buffer: [128]events.Event,
+    _event_buffer: RingBuffer(events.Event),
 
     // common API
     title: [256]u8 = std.mem.zeroes([256]u8),
@@ -164,6 +169,22 @@ pub const Window = struct {
 
     pub fn makeContextCurrent(self: Window) !void {
         try self._egl.makeCurrent();
+    }
+
+    pub fn pollEvents(self: *Window) !void {
+        var ev: c.XEvent = undefined;
+
+        while (c.XEventsQueued(self._target.display) > 0) {
+            if (c.XNextEvent(self._target.display, &ev) == 0) {
+                std.log.warn("failed to get next event", .{});
+            }
+            switch (ev.type) {
+                c.KeyPress => self._event_buffer.push(.{ .key = .{
+                    .key = getKey(ev.xkey.keycode),
+                    .pressed = true,
+                } }),
+            }
+        }
     }
 };
 
