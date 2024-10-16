@@ -236,7 +236,7 @@ inline fn initDisplay() XErr!*c.Display {
 }
 
 /// Create a new x11 window
-pub fn createWindow(title: []const u8, x: u16, y: u16, w: u16, h: u16, opts: mwl.WinOpts) !Window {
+pub fn createWindow(title: []const u8, w: u16, h: u16, opts: mwl.WinOpts) !Window {
     const target = try Target.init();
 
     const white = c.XWhitePixel(target.display, target.screen);
@@ -245,8 +245,8 @@ pub fn createWindow(title: []const u8, x: u16, y: u16, w: u16, h: u16, opts: mwl
     const handle = c.XCreateSimpleWindow(
         target.display,
         target.root_win,
-        @intCast(x), // x
-        @intCast(y), // y
+        @intCast(0), // x
+        @intCast(0), // y
         @intCast(w), // width
         @intCast(h), // height
         1, // border_width
@@ -258,8 +258,8 @@ pub fn createWindow(title: []const u8, x: u16, y: u16, w: u16, h: u16, opts: mwl
         ._handle = handle,
         ._target = target,
         ._egl = undefined,
-        .x = x,
-        .y = y,
+        .x = 0,
+        .y = 0,
         .w = w,
         .h = h,
         .opts = opts,

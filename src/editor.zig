@@ -1,7 +1,7 @@
 const std = @import("std");
 const config = @import("config");
 const sdl = @import("sdl.zig");
-const window = @import("window.zig");
+const mwl = @import("mwl/mwl.zig");
 const dim = @import("dim.zig");
 const render = @import("render.zig");
 const QuadRenderer = render.QuadRenderer;
@@ -37,7 +37,7 @@ pub fn run() !void {
 
     _ = audio.loop(.bg_seeing_die_dog);
     try input_mgr.init(alloc);
-    var win = try window.init(WINDOW_WIDTH, WINDOW_HEIGHT, "Figment - *float*", .{ .style = .windowed, .vsync = false });
+    var win = try mwl.createWindow("Figment - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
     defer win.deinit();
 
     log.info("window initialized", .{});
@@ -123,6 +123,7 @@ pub fn run() !void {
     var dt: f32 = 0;
     var total_elapsed_time: f32 = 0;
     var frames: usize = 0;
+    log.info("begin game loop", .{});
     while (!input_mgr.quit) {
         defer input_mgr.flush();
         defer last_time = current_time;

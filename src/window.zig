@@ -187,7 +187,7 @@ fn initGLFW(window: Window) !BackendWindow {
 
 fn initMWL(window: Window) !BackendWindow {
     std.log.info("initMWL", .{});
-    const win = try mwl.createWindow("mythic *float*", 0, 0, window.w, window.h, .{
+    const win = try mwl.createWindow("mythic *float*", window.w, window.h, .{
         .mode = .windowed,
         .vsync = false,
         .gl_major = 3,

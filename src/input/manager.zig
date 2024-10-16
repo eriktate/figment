@@ -59,7 +59,7 @@ pub fn flush() void {
     }
 }
 
-pub export fn glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i32) void {
+pub export fn _glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i32) void {
     const key_event = events.KeyEvent{
         .key = glfw.resolveKey(key) orelse return,
         .pressed = action == c.GLFW_PRESS or action == c.GLFW_REPEAT,
