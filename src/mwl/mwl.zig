@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../c.zig");
+const c = @import("c");
 const gl = @import("../gl.zig");
 const events = @import("../input/events.zig");
 const config = @import("config");

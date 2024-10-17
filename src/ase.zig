@@ -1,6 +1,6 @@
 const std = @import("std");
 const zlib = std.compress.zlib;
-const c = @import("c.zig");
+const c = @import("c");
 const log = @import("log.zig");
 
 const AseErr = error{

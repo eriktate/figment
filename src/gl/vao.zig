@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../c.zig");
+const c = @import("c");
 const log = @import("../log.zig");
 
 const DrawMode = enum(c_uint) {

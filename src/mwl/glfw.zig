@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../c.zig");
+const c = @import("c");
 
 const WinOpts = @import("mwl.zig").WinOpts;
 const WinErr = @import("mwl.zig").WinErr;
@@ -53,8 +53,8 @@ export fn glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i
     const event = events.KeyEvent{
         .key = glfw.resolveKey(key) orelse return,
         .pressed = action == c.GLFW_PRESS or action == c.GLFW_REPEAT,
+        // .pressed = action == c.GLFW_PRESS,
     };
-    std.log.info("{any} {} {}", .{ event.key, event.pressed, action });
     event_buffer.push(events.Event{ .key = event });
 }
 

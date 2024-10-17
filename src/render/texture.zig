@@ -1,6 +1,6 @@
 const std = @import("std");
 const ase = @import("../ase.zig");
-const c = @import("../c.zig");
+const c = @import("c");
 
 const TextureErr = error{
     LoadFailed,

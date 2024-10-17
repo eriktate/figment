@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c");
 const log = @import("log.zig");
 
 const MAX_AUDIO_BUFFER_SIZE = 20 * 1024 * 1024; // 4MB is the largest PCM buffer size allowed for in-memory buffer sources

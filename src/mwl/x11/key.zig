@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../../c.zig");
+const c = @import("c");
 const Key = @import("../../input/events.zig").Key;
 
 var code_to_key: [255]Key = undefined;

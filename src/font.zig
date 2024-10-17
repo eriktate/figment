@@ -1,6 +1,6 @@
 const std = @import("std");
 const render = @import("render.zig");
-const c = @import("c.zig");
+const c = @import("c");
 const cast = @import("cast.zig");
 const log = @import("log.zig");
 const dim = @import("dim.zig");

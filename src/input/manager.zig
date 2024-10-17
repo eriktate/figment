@@ -2,7 +2,6 @@ const std = @import("std");
 const events = @import("events.zig");
 const Controller = @import("controller.zig").Controller;
 const glfw = @import("../glfw.zig");
-const c = @import("../c.zig");
 
 pub var ready: bool = false;
 pub var quit: bool = false;
@@ -57,16 +56,4 @@ pub fn flush() void {
     for (controllers.items) |*ctrl| {
         ctrl.flush();
     }
-}
-
-pub export fn _glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i32) void {
-    const key_event = events.KeyEvent{
-        .key = glfw.resolveKey(key) orelse return,
-        .pressed = action == c.GLFW_PRESS or action == c.GLFW_REPEAT,
-    };
-
-    std.log.info("{any} {} {}", .{ key_event.key, key_event.pressed, action });
-    handleEvent(events.Event{
-        .key = key_event,
-    }) catch |err| std.log.err("failed to process key event: {any}", .{err});
 }

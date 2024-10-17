@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../c.zig");
+const c = @import("c");
 const fmt = std.fmt;
 const sprite = @import("../sprite.zig");
 const render = @import("../render.zig");

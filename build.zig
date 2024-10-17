@@ -1,5 +1,5 @@
 const std = @import("std");
-const Backend = @import("src/window.zig").Backend;
+const Backend = @import("src/mwl/mwl.zig").Backend;
 const Mode = @import("src/lib.zig").Mode;
 const mythic = @import("src/mythic.zig");
 const native_os = @import("builtin").os.tag;
@@ -31,6 +31,36 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const options_mod = options.createModule();
+    const c_mod = b.addModule("c", .{
+        .root_source_file = b.path("src/c/c.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    c_mod.addImport("config", options_mod);
+    c_mod.addIncludePath(b.path(vendor_include));
+    c_mod.addLibraryPath(b.path(vendor_lib));
+    c_mod.addCSourceFile(.{
+        .file = b.path("src/impl.c"),
+        .flags = &.{},
+    });
+
+    c_mod.addCSourceFile(.{
+        .file = b.path(vendor_src ++ "/gl3w.c"),
+        .flags = &.{},
+    });
+
+    if (build_opts.platform == .x11 and build_opts.backend == .mwl) {
+        c_mod.linkSystemLibrary("X11", .{});
+        c_mod.linkSystemLibrary("EGL", .{});
+    }
+
+    c_mod.linkSystemLibrary("pthread", .{});
+    c_mod.linkSystemLibrary("m", .{});
+    c_mod.linkSystemLibrary("glfw3", .{});
+    c_mod.linkSystemLibrary("SDL2", .{});
+    c_mod.linkSystemLibrary("freetype", .{});
+
     const exe = b.addExecutable(.{
         .name = "mythic",
         .root_source_file = b.path("src/main.zig"),
@@ -38,27 +68,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.root_module.addOptions("config", options);
-    exe.addIncludePath(b.path(vendor_include));
-    exe.addLibraryPath(b.path(vendor_lib));
-    exe.addCSourceFile(.{
-        .file = b.path("src/impl.c"),
-        .flags = &.{},
-    });
-
-    exe.addCSourceFile(.{
-        .file = b.path(vendor_src ++ "/gl3w.c"),
-        .flags = &.{},
-    });
-
     exe.linkLibC();
-    exe.linkSystemLibrary("X11");
-    exe.linkSystemLibrary("EGL");
-    exe.linkSystemLibrary("pthread");
-    exe.linkSystemLibrary("m");
-    exe.linkSystemLibrary("glfw3");
-    exe.linkSystemLibrary("SDL2");
-    exe.linkSystemLibrary("freetype");
+    exe.root_module.addImport("config", options_mod);
+    exe.root_module.addImport("c", c_mod);
 
     b.installArtifact(exe);
 

@@ -1,5 +1,5 @@
-const c = @import("c.zig");
 const std = @import("std");
+const c = @import("c");
 const sdl = @import("sdl.zig");
 const glfw = @import("glfw.zig");
 const input_mgr = @import("input/manager.zig");

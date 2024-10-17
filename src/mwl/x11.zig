@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("../c.zig");
+const c = @import("c");
 const mwl = @import("mwl.zig");
 const input = @import("input.zig");
 const getKey = @import("x11/key.zig").getKey;
