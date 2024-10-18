@@ -2,15 +2,15 @@ const config = @import("config");
 
 pub usingnamespace switch (config.opts.platform) {
     .x11 => x11(),
-    .win32 => win32{},
+    .win32 => win32(),
     else => @compileError("unsupported platform"),
 };
 
 fn x11() type {
     return @cImport({
-        // @cDefine("MA_NO_ENCODING", "");
-        // @cDefine("MA_ENABLE_ONLY_SPECIFIC_BACKENDS", "");
-        // @cDefine("MA_ENABLE_PULSEAUDIO", "");
+        @cDefine("MA_NO_ENCODING", "");
+        @cDefine("MA_ENABLE_ONLY_SPECIFIC_BACKENDS", "");
+        @cDefine("MA_ENABLE_PULSEAUDIO", "");
         @cInclude("miniaudio.h");
 
         @cInclude("GL/gl3w.h");
@@ -27,13 +27,14 @@ fn x11() type {
 
 fn win32() type {
     return @cImport({
-        // @cDefine("MA_NO_ENCODING", "");
-        // @cDefine("MA_ENABLE_ONLY_SPECIFIC_BACKENDS", "");
-        // @cDefine("MA_ENABLE_PULSEAUDIO", "");
+        @cDefine("MA_NO_ENCODING", "");
+        @cDefine("MA_ENABLE_ONLY_SPECIFIC_BACKENDS", "");
+        @cDefine("MA_ENABLE_WASAPI", "");
+        @cDefine("MA_ENABLE_DSOUND", "");
+        @cDefine("MA_ENABLE_WINMM", "");
         @cInclude("miniaudio.h");
 
         @cInclude("GL/gl3w.h");
-        @cInclude("SDL2/SDL.h");
         @cInclude("GLFW/glfw3.h");
         @cInclude("stb_image.h");
         @cInclude("stb_truetype.h");

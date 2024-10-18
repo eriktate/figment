@@ -26,7 +26,7 @@ const VIEW_WIDTH = 960;
 const VIEW_HEIGHT = 540;
 
 pub fn run() !void {
-    log.info("starting editor...", .{});
+    log.info("starting editor", .{});
     const alloc = std.heap.page_allocator;
 
     var g = try game.init(alloc);

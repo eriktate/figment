@@ -4,8 +4,8 @@ const Mode = @import("src/lib.zig").Mode;
 const mythic = @import("src/mythic.zig");
 const native_os = @import("builtin").os.tag;
 
-const vendor_lib = "vendor/lib";
-const vendor_include = "vendor/include";
+const vendor_lib_base = "vendor/lib";
+const vendor_include_base = "vendor/include";
 const vendor_src = "vendor/src";
 
 pub const Options = struct {
@@ -13,6 +13,15 @@ pub const Options = struct {
     mode: Mode = .editor,
     platform: mythic.Platform = mythic.getPlatformFromNative(native_os),
 };
+
+fn getTargetFromPlatform(platform: mythic.Platform) std.Target.Query {
+    return switch (platform) {
+        .x11 => .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
+        .wayland => .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
+        .win32 => .{ .cpu_arch = .x86_64, .os_tag = .windows },
+        .appkit => .{ .cpu_arch = .x86_64, .os_tag = .macos },
+    };
+}
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -28,7 +37,14 @@ pub fn build(b: *std.Build) void {
 
     options.addOption(Options, "opts", build_opts);
 
-    const target = b.standardTargetOptions(.{});
+    // This is a weird hack because specifying the target explicitly for native linux seems
+    // to lose the system include path. Adding all required headers to the vendor/include/
+    // directory is a possible fix for this if we can't figure out why this happens
+    const target = switch (build_opts.platform) {
+        mythic.getPlatformFromNative(native_os) => b.standardTargetOptions(.{}),
+        else => b.resolveTargetQuery(getTargetFromPlatform(build_opts.platform)),
+    };
+
     const optimize = b.standardOptimizeOption(.{});
 
     const options_mod = options.createModule();
@@ -38,8 +54,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     c_mod.addImport("config", options_mod);
-    c_mod.addIncludePath(b.path(vendor_include));
-    c_mod.addLibraryPath(b.path(vendor_lib));
+    if (build_opts.platform == .win32) {
+        c_mod.addIncludePath(b.path(vendor_include_base ++ "/win"));
+        c_mod.addLibraryPath(b.path(vendor_lib_base ++ "/win"));
+    } else {
+        c_mod.addIncludePath(b.path(vendor_include_base));
+        c_mod.addLibraryPath(b.path(vendor_lib_base));
+    }
+
     c_mod.addCSourceFile(.{
         .file = b.path("src/impl.c"),
         .flags = &.{},
@@ -55,11 +77,21 @@ pub fn build(b: *std.Build) void {
         c_mod.linkSystemLibrary("EGL", .{});
     }
 
-    c_mod.linkSystemLibrary("pthread", .{});
-    c_mod.linkSystemLibrary("m", .{});
+    if (build_opts.platform == .x11 or build_opts.platform == .wayland) {
+        c_mod.linkSystemLibrary("pthread", .{});
+        c_mod.linkSystemLibrary("m", .{});
+    }
+
+    if (build_opts.platform == .win32) {
+        // TODO (soggy): figure out if all of these are needed
+        c_mod.linkSystemLibrary("opengl32", .{});
+        c_mod.linkSystemLibrary("gdi32", .{});
+        c_mod.linkSystemLibrary("user32", .{});
+        c_mod.linkSystemLibrary("kernel32", .{});
+    }
+
     c_mod.linkSystemLibrary("glfw3", .{});
-    c_mod.linkSystemLibrary("SDL2", .{});
-    c_mod.linkSystemLibrary("freetype", .{});
+    // c_mod.linkSystemLibrary("freetype", .{});
 
     const exe = b.addExecutable(.{
         .name = "mythic",

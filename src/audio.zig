@@ -158,15 +158,16 @@ pub fn init(allocator: std.mem.Allocator) !void {
 
 fn initSound(sound: Sound, path: []const u8, source_override: ?SourceKind) !void {
     var path_buf: [1024 * 4]u8 = undefined;
-    const absolute_path = try std.fs.cwd().realpath(path, path_buf[0..]);
-    path_buf[absolute_path.len] = 0;
+    std.mem.copyForwards(u8, &path_buf, path);
+    path_buf[path.len] = 0;
+
     const decoder = try alloc.create(c.ma_decoder);
     var dec_config = c.ma_decoder_config_init(c.ma_format_f32, @intCast(channels), 48000);
     dec_config.encodingFormat = c.ma_encoding_format_wav;
 
     // I don't love that miniaudio has to allocate using this method. At some point I'll probably build my own WAV and OGG decoders
     // to ensure streaming behaviors and control all allocations
-    const result = c.ma_decoder_init_file(absolute_path.ptr, &dec_config, decoder);
+    const result = c.ma_decoder_init_file(&path_buf, &dec_config, decoder);
     if (result != c.MA_SUCCESS) {
         log.err("failed to init decoder: {d}", .{result});
         return AudioErr.DecoderInit;
