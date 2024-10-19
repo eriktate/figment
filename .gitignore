@@ -6,5 +6,7 @@ vendor/lib/
 vendor/include/
 vendor/src/
 vendor/glfw-win/
+vendor/windows
+vendor/linux
 mythic.exe
 mythic.pdb
