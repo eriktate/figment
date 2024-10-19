@@ -17,7 +17,7 @@ fn x11() type {
         @cInclude("EGL/egl.h");
         @cInclude("X11/Xlib.h");
         @cInclude("X11/Xutil.h");
-        @cInclude("SDL2/SDL.h");
+        // @cInclude("SDL2/SDL.h");
         @cInclude("GLFW/glfw3.h");
         @cInclude("stb_image.h");
         @cInclude("stb_truetype.h");

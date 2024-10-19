@@ -4,9 +4,13 @@ const Mode = @import("src/lib.zig").Mode;
 const mythic = @import("src/mythic.zig");
 const native_os = @import("builtin").os.tag;
 
-const vendor_lib_base = "vendor/lib";
-const vendor_include_base = "vendor/include";
-const vendor_src = "vendor/src";
+const vendor_linux_lib = "vendor/linux/lib";
+const vendor_linux_include = "vendor/linux/include";
+const vendor_linux_src = "vendor/linux/src";
+
+const vendor_windows_lib = "vendor/windows/lib";
+const vendor_windows_include = "vendor/windows/include";
+const vendor_windows_src = "vendor/windows/src";
 
 pub const Options = struct {
     backend: Backend = .mwl,
@@ -23,6 +27,29 @@ fn getTargetFromPlatform(platform: mythic.Platform) std.Target.Query {
     };
 }
 
+fn getLibFromPlatform(platform: mythic.Platform) []const u8 {
+    return switch (platform) {
+        .x11 => vendor_linux_lib,
+        .win32 => vendor_windows_lib,
+        else => "",
+    };
+}
+
+fn getIncludeFromPlatform(platform: mythic.Platform) []const u8 {
+    return switch (platform) {
+        .x11 => vendor_linux_include,
+        .win32 => vendor_windows_include,
+        else => "",
+    };
+}
+
+fn getSrcFromPlatform(platform: mythic.Platform) []const u8 {
+    return switch (platform) {
+        .x11 => vendor_linux_src,
+        .win32 => vendor_windows_src,
+        else => "",
+    };
+}
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -36,6 +63,10 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
 
     options.addOption(Options, "opts", build_opts);
+
+    const vendor_lib = getLibFromPlatform(build_opts.platform);
+    const vendor_include = getIncludeFromPlatform(build_opts.platform);
+    const vendor_src = getSrcFromPlatform(build_opts.platform);
 
     // This is a weird hack because specifying the target explicitly for native linux seems
     // to lose the system include path. Adding all required headers to the vendor/include/
@@ -54,21 +85,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     c_mod.addImport("config", options_mod);
-    if (build_opts.platform == .win32) {
-        c_mod.addIncludePath(b.path(vendor_include_base ++ "/win"));
-        c_mod.addLibraryPath(b.path(vendor_lib_base ++ "/win"));
-    } else {
-        c_mod.addIncludePath(b.path(vendor_include_base));
-        c_mod.addLibraryPath(b.path(vendor_lib_base));
-    }
-
+    c_mod.addIncludePath(b.path(vendor_include));
+    c_mod.addLibraryPath(b.path(vendor_lib));
     c_mod.addCSourceFile(.{
         .file = b.path("src/impl.c"),
         .flags = &.{},
     });
 
     c_mod.addCSourceFile(.{
-        .file = b.path(vendor_src ++ "/gl3w.c"),
+        .file = b.path(b.pathJoin(&.{ vendor_src, "/gl3w.c" })),
         .flags = &.{},
     });
 
@@ -91,7 +116,6 @@ pub fn build(b: *std.Build) void {
     }
 
     c_mod.linkSystemLibrary("glfw3", .{});
-    // c_mod.linkSystemLibrary("freetype", .{});
 
     const exe = b.addExecutable(.{
         .name = "mythic",
