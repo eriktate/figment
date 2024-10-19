@@ -2,7 +2,7 @@ const std = @import("std");
 const c = @import("c");
 const log = @import("log.zig");
 
-const MAX_AUDIO_BUFFER_SIZE = 20 * 1024 * 1024; // 4MB is the largest PCM buffer size allowed for in-memory buffer sources
+const MAX_AUDIO_BUFFER_SIZE = 20 * 1024 * 1024; // 20MB is the largest PCM buffer size allowed for in-memory buffer sources
 
 pub const AudioErr = error{
     DeviceInit,
@@ -102,13 +102,13 @@ fn mixAudio(out: [*]f32, frame_count: u32) void {
 
         var frames_read: usize = 0;
         switch (snd.source) {
-            .stream => {
-                if (c.ma_decoder_read_pcm_frames(snd.source.stream.stream, &mix_buf, frame_count, &frames_read) != c.MA_SUCCESS) {
+            .stream => |stream| {
+                if (c.ma_decoder_read_pcm_frames(stream.stream, &mix_buf, frame_count, &frames_read) != c.MA_SUCCESS) {
                     log.err("failed to read PCM frames from stream: {any}", .{snd.sound});
                 }
             },
-            .buffer => {
-                frames_read = c.ma_audio_buffer_read_pcm_frames(&snd.source.buffer.buffer, &mix_buf, frame_count, @intFromBool(snd.state == .loop));
+            .buffer => |*buffer| {
+                frames_read = c.ma_audio_buffer_read_pcm_frames(&buffer.buffer, &mix_buf, frame_count, @intFromBool(snd.state == .loop));
             },
         }
 

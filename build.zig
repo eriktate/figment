@@ -13,7 +13,7 @@ const vendor_windows_include = "vendor/windows/include";
 const vendor_windows_src = "vendor/windows/src";
 
 pub const Options = struct {
-    backend: Backend = .mwl,
+    backend: Backend = .glfw,
     mode: Mode = .editor,
     platform: mythic.Platform = mythic.getPlatformFromNative(native_os),
 };
