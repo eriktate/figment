@@ -30,6 +30,8 @@ pub fn run() !void {
     const alloc = std.heap.page_allocator;
 
     var g = try game.init(alloc);
+
+    log.info("init audio subsystem", .{});
     try audio.init(alloc);
     defer audio.deinit();
 
