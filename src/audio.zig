@@ -110,7 +110,7 @@ pub fn init(allocator: std.mem.Allocator) !void {
     var config = c.ma_device_config_init(c.ma_device_type_playback);
     config.playback.format = c.ma_format_s16;
     config.playback.channels = @intCast(channels);
-    config.sampleRate = 22050;
+    config.sampleRate = 44100;
     config.dataCallback = audioCallback;
     config.pUserData = null;
 
@@ -123,10 +123,6 @@ pub fn init(allocator: std.mem.Allocator) !void {
     if (c.ma_device_start(&device) != c.MA_SUCCESS) {
         return AudioErr.DeviceStart;
     }
-
-    // try loadAndInitSound(.speech, "assets/sounds/speech.wav", null);
-    // try loadAndInitSound(.bark, "assets/sounds/bark.wav", null);
-    // try loadAndInitSound(.bg_seeing_die_dog, "assets/sounds/seeingdiedog.wav", null);
 
     try initSound(.speech, "assets/sounds/speech.wav");
     try initSound(.bark, "assets/sounds/bark.wav");
@@ -149,51 +145,6 @@ fn initSound(sound: Sound, path: []const u8) !void {
 
     log.info("save buffer for later", .{});
     sources.set(sound, .{ .buffer = buf });
-}
-
-fn loadAndInitSound(sound: Sound, path: []const u8) !void {
-    var path_buf: [1024 * 4]u8 = undefined;
-    std.mem.copyForwards(u8, &path_buf, path);
-    path_buf[path.len] = 0;
-
-    const decoder = try alloc.create(c.ma_decoder);
-    var dec_config = c.ma_decoder_config_init(c.ma_format_f32, @intCast(channels), 48000);
-    dec_config.encodingFormat = c.ma_encoding_format_wav;
-
-    // I don't love that miniaudio has to allocate using this method. At some point I'll probably build my own WAV and OGG decoders
-    // to ensure streaming behaviors and control all allocations
-    const result = c.ma_decoder_init_file(&path_buf, &dec_config, decoder);
-    if (result != c.MA_SUCCESS) {
-        log.err("failed to init decoder: {d}", .{result});
-        return AudioErr.DecoderInit;
-    }
-
-    const tmp = try alloc.alloc(f32, MAX_AUDIO_BUFFER_SIZE);
-    defer alloc.free(tmp);
-
-    const frame_count = 1200;
-    var frames_read: u64 = frame_count;
-    var total_frames: usize = 0;
-    while (frames_read == frame_count) {
-        if (c.ma_decoder_read_pcm_frames(decoder, &tmp[total_frames * channels], frame_count, &frames_read) != c.MA_SUCCESS) {
-            return AudioErr.DecodingFail;
-        }
-        total_frames += frames_read;
-    }
-    log.info("setting {any} to buffer", .{sound});
-
-    // buffer source
-    defer _ = c.ma_decoder_uninit(decoder);
-    const pcm_buf = try alloc.alloc(f32, total_frames * channels);
-    @memcpy(pcm_buf, tmp[0 .. total_frames * channels]);
-
-    var buf_config = c.ma_audio_buffer_config_init(c.ma_format_f32, @intCast(channels), pcm_buf.len / channels, pcm_buf.ptr, null);
-    var audio_buffer: c.ma_audio_buffer = undefined;
-    if (c.ma_audio_buffer_init(&buf_config, &audio_buffer) != c.MA_SUCCESS) {
-        return AudioErr.BufferInit;
-    }
-
-    sources.set(sound, .{ .buffer = .{ .buf = pcm_buf, .buffer = audio_buffer } });
 }
 
 pub fn deinit() void {

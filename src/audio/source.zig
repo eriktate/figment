@@ -98,7 +98,7 @@ export fn onSeek(data_source: ?*c.ma_data_source, frame_index: usize) c.ma_resul
 export fn onGetDataFormat(data_source: ?*c.ma_data_source, format: [*c]c.ma_format, channels: [*c]u32, sample_rate: [*c]u32, _: [*c]c.ma_channel, _: usize) c.ma_result {
     var source: *Source = @alignCast(@ptrCast(data_source));
     const fmt = source.backend.getDataFormat() catch return c.MA_ERROR;
-    format.* = switch (fmt.depth) {
+    format.* = switch (fmt.sample_fmt) {
         .s16 => c.ma_format_s16,
         .s24 => c.ma_format_s24,
         .float32 => c.ma_format_f32,

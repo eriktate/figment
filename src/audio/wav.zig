@@ -50,7 +50,7 @@ pub const Wav = struct {
 
         const buffer = pcm.Buffer{
             .fmt = .{
-                .depth = switch (self.fmt.bits_per_sample) {
+                .sample_fmt = switch (self.fmt.bits_per_sample) {
                     16 => .s16,
                     24 => .s24,
                     32 => .float32,
