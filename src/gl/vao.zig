@@ -84,8 +84,8 @@ pub fn addAttr(self: *VAO, typ: type, count: usize, stride: usize, offset: usize
     c.glEnableVertexAttribArray(@intCast(self.attr_count));
     const info = @typeInfo(typ);
     switch (info) {
-        .Int => |int| c.glVertexAttribIPointer(@intCast(self.attr_count), @intCast(count), intToGL(int), @intCast(stride), @ptrFromInt(offset)),
-        .Float => |float| c.glVertexAttribPointer(@intCast(self.attr_count), @intCast(count), floatToGL(float), c.GL_FALSE, @intCast(stride), @ptrFromInt(offset)),
+        .int => |int| c.glVertexAttribIPointer(@intCast(self.attr_count), @intCast(count), intToGL(int), @intCast(stride), @ptrFromInt(offset)),
+        .float => |float| c.glVertexAttribPointer(@intCast(self.attr_count), @intCast(count), floatToGL(float), c.GL_FALSE, @intCast(stride), @ptrFromInt(offset)),
         else => @compileError("Invalid vertex attribute type: " ++ @typeName(typ)),
     }
 

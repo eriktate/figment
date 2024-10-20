@@ -1,4 +1,5 @@
 const std = @import("std");
+const Type = @import("std").builtin.Type;
 
 pub const SparseSetErr = error{
     IDOutOfBounds,
@@ -7,7 +8,7 @@ pub const SparseSetErr = error{
 fn ensureItemHasID(typ: type) void {
     comptime {
         switch (@typeInfo(typ)) {
-            .Struct => |st| {
+            .@"struct" => |st| {
                 for (st.fields) |field| {
                     if (std.mem.eql(u8, field.name, "id") and field.type == usize) {
                         return;

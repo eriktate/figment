@@ -6,12 +6,12 @@ const testing = std.testing;
 pub inline fn floatToInt(T: type, val: anytype) T {
     const val_type = @TypeOf(val);
     const float_val = switch (@typeInfo(val_type)) {
-        .Float => @as(val_type, val),
+        .float => @as(val_type, val),
         else => @compileError("tried to convert floatToInt but value is not a float"),
     };
 
     switch (@typeInfo(T)) {
-        .Int => return @as(T, @intFromFloat(float_val)),
+        .int => return @as(T, @intFromFloat(float_val)),
         else => @compileError("tried to convert floatToInt, but destination type is not an int"),
     }
 }
@@ -21,12 +21,12 @@ pub inline fn floatToInt(T: type, val: anytype) T {
 pub inline fn intToFloat(T: type, val: anytype) T {
     const val_type = @TypeOf(val);
     const int_val = switch (@typeInfo(val_type)) {
-        .Int => @as(val_type, val),
+        .int => @as(val_type, val),
         else => @compileError("tried to convert intToFloat but value is not an int"),
     };
 
     switch (@typeInfo(T)) {
-        .Float => return @as(T, @floatFromInt(int_val)),
+        .float => return @as(T, @floatFromInt(int_val)),
         else => @compileError("tried to convert intToFloat, but destination type is not a float"),
     }
 }
@@ -35,17 +35,17 @@ pub inline fn castNum(T: type, val: anytype) T {
     const val_type = @TypeOf(val);
 
     switch (@typeInfo(T)) {
-        .Float => {
+        .float => {
             return switch (@typeInfo(val_type)) {
-                .Float => @as(T, val),
-                .Int => @as(T, @floatFromInt(val)),
+                .float => @as(T, val),
+                .int => @as(T, @floatFromInt(val)),
                 else => @compileError("value must be integer or float"),
             };
         },
-        .Int => {
+        .int => {
             return switch (@typeInfo(val_type)) {
-                .Float => @as(T, @intFromFloat(val)),
-                .Int => @as(T, val),
+                .float => @as(T, @intFromFloat(val)),
+                .int => @as(T, val),
                 else => @compileError("value must be integer or float"),
             };
         },
@@ -64,11 +64,11 @@ pub inline fn mul(T: type, left: anytype, right: anytype) T {
     const left_info = @typeInfo(left_type);
     const right_info = @typeInfo(right_type);
 
-    if (left_info == .Float) {
+    if (left_info == .float) {
         return castNum(T, left * castNum(left_type, right));
     }
 
-    if (right_info == .Float) {
+    if (right_info == .float) {
         return castNum(T, castNum(right_type, left) * right);
     }
 

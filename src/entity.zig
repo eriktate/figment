@@ -10,7 +10,7 @@ id: usize = 0,
 solid: bool = false,
 pos: Pos = Pos.zero(),
 box: Box = Box.init(0, 0),
-sprite: sprite.Sprite = sprite.Sprite{},
+spr: sprite.Sprite = sprite.Sprite{},
 speed: dim.Vec2(f32) = dim.Vec2(f32).zero(),
 /// defaults to 4k pixels because we don't want to limit speed by default
 max_speed: dim.Vec2(f32) = dim.Vec2(f32).init(1024 * 4, 1024 * 4),
@@ -28,7 +28,7 @@ pub fn initAt(pos: Pos) Entity {
 
 pub fn withSprite(self: Entity, spr: sprite.Sprite) Entity {
     var ent = self;
-    ent.sprite = spr;
+    ent.spr = spr;
     return ent;
 }
 
@@ -43,7 +43,7 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
         return;
     }
 
-    self.sprite.tick(dt);
+    self.spr.tick(dt);
 
     const abs_clamped_speed = self.speed.abs().clamp(self.max_speed);
     self.speed = abs_clamped_speed.mul(self.speed.sign());
@@ -69,7 +69,7 @@ pub fn toQuad(self: Entity) ?render.Quad {
         return null;
     }
 
-    return self.sprite.toQuad(self.pos);
+    return self.spr.toQuad(self.pos);
 }
 
 pub fn getBox(self: Entity) Box {
@@ -98,7 +98,7 @@ pub fn collisionAt(self: Entity, pos: Pos, entities: []Entity) ?Entity {
 }
 
 pub fn setScale(self: *Entity, scale: dim.Vec2(f32)) void {
-    self.sprite.setScale(scale);
+    self.spr.setScale(scale);
     self.box.setScale(scale);
 }
 

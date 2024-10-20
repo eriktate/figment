@@ -102,7 +102,7 @@ pub fn run() !void {
     );
     witch.setScale(.{ .x = 4, .y = 4 });
 
-    dog.sprite.setFrameRate(6);
+    dog.spr.setFrameRate(6);
     // dog.max_speed = dim.Vec2(f32).init(64, 64);
 
     var player = Player.init(witch.id, &input_mgr.controllers.items[0]);

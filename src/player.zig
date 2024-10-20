@@ -55,17 +55,17 @@ pub fn tick(self: *Player, _: f32) !void {
     }
 
     if (ent.speed.x < 0) {
-        ent.sprite.h_flip = false;
+        ent.spr.h_flip = false;
     }
 
     if (ent.speed.x > 0) {
-        ent.sprite.h_flip = true;
+        ent.spr.h_flip = true;
     }
 
     if (ent.speed.mag() > 0) {
-        ent.sprite.setAnimation(gen.getAnim(.witch_witch_walk));
+        ent.spr.setAnimation(gen.getAnim(.witch_witch_walk));
     } else {
-        ent.sprite.setAnimation(gen.getAnim(.witch_idle_bounce));
+        ent.spr.setAnimation(gen.getAnim(.witch_idle_bounce));
     }
 
     const mag = ent.speed.mag();
