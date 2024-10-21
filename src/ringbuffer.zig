@@ -47,6 +47,18 @@ pub fn RingBuffer(T: type) type {
             self.full = false;
             return item;
         }
+
+        pub fn len(self: Self) usize {
+            if (self.idx < self.end) {
+                return self.end - self.idx;
+            }
+
+            if (self.full) {
+                return self.buf.len;
+            }
+
+            return (self.buf.len - self.idx) + self.end;
+        }
     };
 }
 

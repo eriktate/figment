@@ -3,6 +3,7 @@ const log = @import("log.zig");
 const wav = @import("audio/wav.zig");
 const source = @import("audio/source.zig");
 const pcm = @import("audio/pcm.zig");
+const stream = @import("audio/stream.zig");
 const miniaudio = @import("audio/miniaudio.zig");
 
 pub const Format = pcm.Format;
@@ -82,11 +83,18 @@ fn initSource(sound: Sound, path: []const u8) !void {
     log.info("init sound {any} from path {s}", .{ sound, path });
     const wav_file = try wav.loadFromFile(path);
 
-    log.info("convert sound to PCMBuffer", .{});
-    const buf = try wav_file.toBuffer(alloc);
+    if (wav_file.data.size <= MAX_AUDIO_BUFFER_SIZE) {
+        log.info("convert sound to PCMBuffer", .{});
+        const buf = try wav_file.toBuffer(alloc);
 
-    log.info("save buffer for later", .{});
-    sources.set(sound, .{ .buffer = buf });
+        log.info("save buffer for later", .{});
+        sources.set(sound, .{ .buffer = buf });
+    } else {
+        log.info("create stream", .{});
+        const st = try stream.Stream.init(alloc, wav_file);
+        log.info("save stream for later", .{});
+        sources.set(sound, .{ .stream = st });
+    }
 }
 
 pub fn deinit() void {
@@ -130,6 +138,7 @@ pub fn memBytes() usize {
     for (sources.values) |src| {
         switch (src) {
             .buffer => |buffer| bytes += buffer.buf.len * @sizeOf(f32),
+            .stream => continue,
             .empty => continue,
         }
     }

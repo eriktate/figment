@@ -42,7 +42,7 @@ pub const Wav = struct {
     bytes_read: usize,
 
     pub fn read(self: Wav, out: []u8) !usize {
-        return self.stream.read(out);
+        return self.file.?.read(out);
     }
 
     pub fn toBuffer(self: Wav, alloc: std.mem.Allocator) !pcm.Buffer {
@@ -63,15 +63,11 @@ pub const Wav = struct {
             .buf = try alloc.alloc(u8, self.data.size),
         };
 
-        log.info("read wav data into PCM buffer", .{});
-        log.info("wav format: {any}", .{self.fmt});
-        log.info("wav data: {any}", .{self.data});
         var total_bytes_read: usize = 0;
         var stream = self.file.?.reader().any();
 
         while (true) {
             const bytes_read = try stream.read(buffer.buf[total_bytes_read..]);
-            log.info("read bytes: {d}", .{bytes_read});
             if (bytes_read == 0) {
                 break;
             }
@@ -80,6 +76,10 @@ pub const Wav = struct {
 
         std.debug.assert(total_bytes_read == self.data.size);
         return buffer;
+    }
+
+    pub fn frameSize(self: Wav) usize {
+        return @intCast(self.fmt.num_channels * self.fmt.bits_per_sample / 8);
     }
 };
 
