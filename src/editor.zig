@@ -32,7 +32,11 @@ pub fn run() !void {
     var g = try game.init(alloc);
 
     log.info("init audio subsystem", .{});
-    try audio.init(alloc);
+    try audio.init(alloc, audio.Format{
+        .channels = 2,
+        .sample_fmt = .s16,
+        .sample_rate = 44100,
+    });
     defer audio.deinit();
 
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
