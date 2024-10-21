@@ -53,6 +53,10 @@ pub fn RingBuffer(T: type) type {
                 return self.end - self.idx;
             }
 
+            if (!self.full and self.idx == self.end) {
+                return 0;
+            }
+
             if (self.full) {
                 return self.buf.len;
             }
@@ -62,37 +66,45 @@ pub fn RingBuffer(T: type) type {
     };
 }
 
-test "ring buffer" {
+test "ring buffer push" {
     const t = std.testing;
 
     var buf = std.mem.zeroes([3]u8);
-    var ring = RingBuffer(u8).init(&buf);
+    var rb = RingBuffer(u8).init(&buf);
+    try t.expectEqual(0, rb.len());
 
-    ring.push(1);
-    ring.push(2);
-    ring.push(3);
+    rb.push(1);
+    rb.push(2);
+    rb.push(3);
 
-    try t.expectEqual(1, ring.next());
-    try t.expectEqual(2, ring.next());
-    try t.expectEqual(3, ring.next());
-    try t.expectEqual(null, ring.next());
+    try t.expectEqual(3, rb.len());
+    try t.expectEqual(1, rb.next());
+    try t.expectEqual(2, rb.next());
+    try t.expectEqual(3, rb.next());
+    try t.expectEqual(null, rb.next());
+    try t.expectEqual(0, rb.len());
 
-    ring.push(4);
-    ring.push(5);
-    ring.push(6);
+    rb.push(4);
+    rb.push(5);
+    rb.push(6);
 
-    try t.expectEqual(4, ring.next());
-    try t.expectEqual(5, ring.next());
-    try t.expectEqual(6, ring.next());
-    try t.expectEqual(null, ring.next());
+    try t.expectEqual(3, rb.len());
+    try t.expectEqual(4, rb.next());
+    try t.expectEqual(5, rb.next());
+    try t.expectEqual(6, rb.next());
+    try t.expectEqual(null, rb.next());
+    try t.expectEqual(0, rb.len());
+    try t.expectEqual(0, rb.len());
 
-    ring.push(7);
-    ring.push(8);
-    ring.push(9);
-    ring.push(10);
-    ring.push(11);
+    rb.push(7);
+    rb.push(8);
+    rb.push(9);
+    rb.push(10);
+    rb.push(11);
 
-    try t.expectEqual(9, ring.next());
-    try t.expectEqual(10, ring.next());
-    try t.expectEqual(11, ring.next());
+    try t.expectEqual(3, rb.len());
+    try t.expectEqual(9, rb.next());
+    try t.expectEqual(10, rb.next());
+    try t.expectEqual(11, rb.next());
+    try t.expectEqual(0, rb.len());
 }
