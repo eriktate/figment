@@ -2,23 +2,29 @@ const std = @import("std");
 const log = @import("../log.zig");
 const wav = @import("./wav.zig");
 const pcm = @import("./pcm.zig");
-const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
 
-const MAX_BUFFER_SECONDS = 3;
-const MIN_BUFFER_SECONDS = 1;
+// TODO (soggy): need to figure out if this is enough buffer to keep audio smooth even on disk drives
+const BUFFER_SECONDS = 2;
 
-// TODO (soggy): for streaming audio to be really useful, the streaming should probably happen on a separate thread
+// TODO (soggy): it would be nice to eventually do the file streaming on a separate thread, but for now this seems to work well enough
 pub const Stream = struct {
     alloc: std.mem.Allocator,
-    buffer: []u8,
-    rb: RingBuffer(u8),
-    live_buf: []u8,
+    buf1: []u8,
+    buf2: []u8,
+    active_buf: []u8,
+    back_buf: []u8,
+    window: []u8,
+    next_buf: []u8,
     wav: wav.Wav,
 
     frames_read: usize = 0,
+    should_swap: bool = false,
     eof: bool = false,
     loop: bool = false,
 
+    // TODO (soggy): because we init on an existing wav file, Streams as a source can only be played one at time. If we accept a path
+    // during initialization and add a way of duplicating the Stream such that each instance gets its own file handle, we should be
+    // able to play multiple instances of the same file
     pub fn init(alloc: std.mem.Allocator, w: wav.Wav) !Stream {
         const frame_size = w.frameSize();
         const bytes_per_second = frame_size * w.fmt.sample_rate;
@@ -26,17 +32,26 @@ pub const Stream = struct {
         var stream = Stream{
             .alloc = alloc,
             .wav = w,
-            .buffer = try alloc.alloc(u8, bytes_per_second * MAX_BUFFER_SECONDS),
-            .rb = undefined,
-            .live_buf = try alloc.alloc(u8, bytes_per_second * MAX_BUFFER_SECONDS),
+            .buf1 = try alloc.alloc(u8, bytes_per_second * BUFFER_SECONDS),
+            .buf2 = try alloc.alloc(u8, bytes_per_second * BUFFER_SECONDS),
+            .active_buf = undefined,
+            .back_buf = undefined,
+            .window = undefined,
+            .next_buf = undefined,
         };
 
-        stream.rb = RingBuffer(u8).init(stream.buffer);
-        stream.rb.full = true;
-        const bytes_read = try w.read(stream.buffer);
-        if (bytes_read < stream.buffer.len) {
-            stream.rb.full = false;
-            stream.rb.end = bytes_read;
+        stream.active_buf = stream.buf1;
+        stream.back_buf = stream.buf2;
+        stream.next_buf = stream.buf1[0..];
+
+        // prefetch both buffers
+        var bytes_read = try w.read(stream.buf1);
+        if (bytes_read < stream.buf1.len) {
+            stream.eof = true;
+        }
+
+        bytes_read = try w.read(stream.buf2);
+        if (bytes_read < stream.buf2.len) {
             stream.eof = true;
         }
 
@@ -44,47 +59,41 @@ pub const Stream = struct {
     }
 
     pub fn read(self: *Stream, frames: usize) !pcm.Result {
-        const frame_size = self.wav.frameSize();
-        const bytes_per_second = frame_size * self.wav.fmt.sample_rate;
+        const fmt = self.wav.getFormat();
+        const frame_size = fmt.frameSize();
+        self.window = self.next_buf;
 
-        var frames_read: usize = frames;
-        for (0..frames * frame_size) |i| {
-            if (self.rb.next()) |byte| {
-                self.live_buf[i] = byte;
-            } else {
-                frames_read = i / frame_size;
-                break;
+        if (self.should_swap) {
+            log.info("swapping buffers and streaming file", .{});
+            const bytes_read = try self.wav.read(self.active_buf);
+            if (bytes_read < self.active_buf.len) {
+                self.eof = true;
             }
+
+            const active_buf = self.active_buf;
+            self.active_buf = self.back_buf;
+            self.back_buf = active_buf;
+            self.should_swap = false;
+            log.info("done swapping", .{});
         }
 
-        const rb_len = self.rb.len();
-        if (!self.eof and rb_len / bytes_per_second <= MIN_BUFFER_SECONDS) {
-            log.info("loading more data from file", .{});
-            var read_buf: [1024]u8 = undefined;
-            var total_bytes_read: usize = 0;
-            while (total_bytes_read < (MAX_BUFFER_SECONDS * bytes_per_second - frame_size * 10 - rb_len)) {
-                const frame_byte_len = (read_buf.len / frame_size) * frame_size;
-
-                // read bytes in frame increments
-                const bytes_read = try self.wav.read(read_buf[0..frame_byte_len]);
-                total_bytes_read += bytes_read;
-                for (read_buf[0..bytes_read]) |byte| {
-                    self.rb.push(byte);
-                }
-
-                if (bytes_read < frame_byte_len) {
-                    // reached end of file
-                    self.eof = true;
-                    break;
-                }
-            }
-            log.info("loaded data from file", .{});
+        const bytes_to_read = frames * frame_size;
+        if (self.window.len >= bytes_to_read) {
+            self.next_buf = self.window[bytes_to_read..];
+        } else {
+            // if there isn't enough data to satisfy the frames requested, we can shift everything to the
+            // beginning of the buffer and load from the beginning of the double buffer
+            const bytes_short = bytes_to_read - self.window.len;
+            @memcpy(self.active_buf[0..self.window.len], self.window);
+            @memcpy(self.active_buf[self.window.len..bytes_to_read], self.back_buf[0..bytes_short]);
+            self.next_buf = self.back_buf[bytes_short..];
+            self.window = self.active_buf[0..bytes_to_read];
+            self.should_swap = true;
         }
 
-        self.frames_read += frames_read;
         return pcm.Result{
-            .data = self.live_buf[0 .. frames_read * frame_size],
-            .frames_read = frames_read,
+            .data = self.window[0..bytes_to_read],
+            .frames_read = frames,
         };
     }
 
