@@ -21,6 +21,10 @@ pub const Format = struct {
     sample_fmt: SampleFmt,
     channels: u16,
     sample_rate: u32,
+
+    pub inline fn frameSize(self: Format) usize {
+        return self.channels * (self.sample_fmt.size() / 8);
+    }
 };
 
 pub const Buffer = struct {
@@ -30,7 +34,7 @@ pub const Buffer = struct {
     buf: []u8,
 
     pub fn read(self: *Buffer, frames: usize) Result {
-        const frame_size = self.frameSize();
+        const frame_size = self.fmt.frameSize();
         var new_offset = self.offset + frames * frame_size;
         var data = Result{
             .frames_read = frames,
@@ -48,19 +52,15 @@ pub const Buffer = struct {
     }
 
     pub fn seek(self: *Buffer, frame_idx: usize) !void {
-        const idx = frame_idx * self.frameSize();
+        const idx = frame_idx * self.fmt.frameSize();
         self.offset = idx;
     }
 
-    pub inline fn frameSize(self: Buffer) usize {
-        return self.fmt.channels * (self.fmt.sample_fmt.size() / 8);
-    }
-
     pub fn getFrameOffset(self: Buffer) usize {
-        return self.offset / self.frameSize();
+        return self.offset / self.fmt.frameSize();
     }
 
     pub fn getFrameLength(self: Buffer) usize {
-        return self.buf.len / self.frameSize();
+        return self.buf.len / self.fmt.frameSize();
     }
 };

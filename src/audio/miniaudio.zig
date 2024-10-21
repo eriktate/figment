@@ -73,7 +73,6 @@ export fn audioCallback(dev: ?*anyopaque, out: ?*anyopaque, _: ?*const anyopaque
         }
 
         var frames_read: usize = 0;
-        log.info("requesting {d} frames from sound {any}", .{ frame_count, snd.sound });
         if (c.ma_data_source_read_pcm_frames(@ptrCast(&snd._miniaudio_source), &mix_buf, frame_count, &frames_read) != c.MA_SUCCESS) {
             log.err("failed to read PCM frames from data source: {any}", .{snd.sound});
         }

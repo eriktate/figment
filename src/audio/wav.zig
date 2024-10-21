@@ -45,20 +45,24 @@ pub const Wav = struct {
         return self.file.?.read(out);
     }
 
+    pub fn getFormat(self: Wav) pcm.Format {
+        return pcm.Format{
+            .sample_fmt = switch (self.fmt.bits_per_sample) {
+                16 => .s16,
+                24 => .s24,
+                32 => .float32,
+                else => @panic("invalid sample format"),
+            },
+            .channels = self.fmt.num_channels,
+            .sample_rate = self.fmt.sample_rate,
+        };
+    }
+
     pub fn toBuffer(self: Wav, alloc: std.mem.Allocator) !pcm.Buffer {
         std.debug.assert(self.bytes_read == 0);
 
         const buffer = pcm.Buffer{
-            .fmt = .{
-                .sample_fmt = switch (self.fmt.bits_per_sample) {
-                    16 => .s16,
-                    24 => .s24,
-                    32 => .float32,
-                    else => @panic("invalid bit size for PCM data"),
-                },
-                .channels = self.fmt.num_channels,
-                .sample_rate = self.fmt.sample_rate,
-            },
+            .fmt = self.getFormat(),
             .offset = 0,
             .buf = try alloc.alloc(u8, self.data.size),
         };
@@ -167,6 +171,7 @@ pub fn loadFromFile(path: []const u8) !Wav {
     const stream = file.reader().any();
     var wav = try parseWav(stream);
     wav.file = file;
+    log.info("loading wav {s} channels={d} sample_rate={d} bits_per_sample={d}", .{ path, wav.fmt.num_channels, wav.fmt.sample_rate, wav.fmt.bits_per_sample });
     return wav;
 }
 

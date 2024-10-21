@@ -35,7 +35,7 @@ pub fn run() !void {
     try audio.init(alloc, audio.Format{
         .channels = 2,
         .sample_fmt = .s16,
-        .sample_rate = 44100,
+        .sample_rate = 22050,
     });
     defer audio.deinit();
 

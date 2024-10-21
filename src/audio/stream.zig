@@ -44,7 +44,6 @@ pub const Stream = struct {
     }
 
     pub fn read(self: *Stream, frames: usize) !pcm.Result {
-        log.info("reading audio from stream", .{});
         const frame_size = self.wav.frameSize();
         const bytes_per_second = frame_size * self.wav.fmt.sample_rate;
 
@@ -53,20 +52,18 @@ pub const Stream = struct {
             if (self.rb.next()) |byte| {
                 self.live_buf[i] = byte;
             } else {
-                log.info("finished reading frames", .{});
                 frames_read = i / frame_size;
                 break;
             }
         }
 
         const rb_len = self.rb.len();
-        log.info("rb len {d}, seconds of data left {d}", .{ rb_len, rb_len / bytes_per_second });
         if (!self.eof and rb_len / bytes_per_second <= MIN_BUFFER_SECONDS) {
             log.info("loading more data from file", .{});
             var read_buf: [1024]u8 = undefined;
             var total_bytes_read: usize = 0;
             while (total_bytes_read < (MAX_BUFFER_SECONDS * bytes_per_second - frame_size * 10 - rb_len)) {
-                const frame_byte_len = read_buf.len / frame_size * frame_size;
+                const frame_byte_len = (read_buf.len / frame_size) * frame_size;
 
                 // read bytes in frame increments
                 const bytes_read = try self.wav.read(read_buf[0..frame_byte_len]);
@@ -81,10 +78,10 @@ pub const Stream = struct {
                     break;
                 }
             }
+            log.info("loaded data from file", .{});
         }
 
         self.frames_read += frames_read;
-        log.info("returning stream frames: {d}", .{frames_read});
         return pcm.Result{
             .data = self.live_buf[0 .. frames_read * frame_size],
             .frames_read = frames_read,
