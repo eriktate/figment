@@ -5,7 +5,7 @@ const pcm = @import("./pcm.zig");
 const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
 
 const MAX_BUFFER_SECONDS = 3;
-const MIN_BUFFER_SECONDS = 2;
+const MIN_BUFFER_SECONDS = 1;
 
 // TODO (soggy): for streaming audio to be really useful, the streaming should probably happen on a separate thread
 pub const Stream = struct {
@@ -60,7 +60,7 @@ pub const Stream = struct {
         }
 
         const rb_len = self.rb.len();
-        log.info("rb len: {d}", .{rb_len});
+        log.info("rb len {d}, seconds of data left {d}", .{ rb_len, rb_len / bytes_per_second });
         if (!self.eof and rb_len / bytes_per_second <= MIN_BUFFER_SECONDS) {
             log.info("loading more data from file", .{});
             var read_buf: [1024]u8 = undefined;
