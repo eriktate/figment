@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = std.builtin.AtomicOrder;
 const config = @import("config");
 const sdl = @import("sdl.zig");
 const mwl = @import("mwl/mwl.zig");
@@ -41,7 +42,6 @@ pub fn run() !void {
 
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
-    _ = audio.loop(.bg_seeing_die_dog);
     try input_mgr.init(alloc);
     var win = try mwl.createWindow("Figment - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
     defer win.deinit();
@@ -56,69 +56,21 @@ pub fn run() !void {
     _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
         .width = 960,
         .height = 540,
-        .source = .{ .frame = gen.getFrame(.bg_dungeon_flat) },
+        .source = .{ .frame = gen.getFrame(.bg_dungeon) },
     }));
 
-    // add faces
-    _ = try g.spawn(
-        Entity.initAt(render.Pos.init(120, 120, 0)).withSprite(
-            sprite.Sprite{
-                .width = 64,
-                .height = 64,
-                .source = sprite.makeAnimation(gen.getAnim(.face_blink)),
-            },
-        ).withBox(Box.init(64, 64)),
-    );
-
-    _ = try g.spawn(
-        Entity.initAt(render.Pos.init(240, 240, 0))
-            .withSprite(
-            sprite.Sprite{
-                .pos = .{ .y = -128 },
-                .width = 128,
-                .height = 128,
-                .source = sprite.makeAnimation(gen.getAnim(.red_face_blink)),
-            },
-        ).withBox(Box.initAt(.{ .y = -48 }, 128, 48)),
-    );
-
-    // add dog
-    var dog = try g.spawn(
-        Entity.initAt(render.Pos.init(256, 120, 0))
-            .withSprite(
-            sprite.Sprite{
-                .pos = .{ .y = -64 },
-                .width = 128,
-                .height = 64,
-                .source = sprite.makeAnimation(gen.getAnim(.dog_run)),
-            },
-        ).withBox(Box.initAt(.{ .y = -32 }, 128, 32)),
-    );
-
-    var witch = try g.spawn(
+    var ronin = try g.spawn(
         Entity.initAt(render.Pos.init(512, 512, 0))
             .withSprite(sprite.Sprite{
             .pos = .{ .y = -48 },
             .width = 48,
             .height = 48,
-            .source = sprite.makeAnimation(gen.getAnim(.witch_idle_bounce)),
+            .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
         }).withBox(Box.initAt(.{ .x = 17, .y = -8 }, 14, 8)),
     );
-    witch.setScale(.{ .x = 4, .y = 4 });
+    ronin.setScale(.{ .x = 2, .y = 2 });
 
-    dog.spr.setFrameRate(6);
-    // dog.max_speed = dim.Vec2(f32).init(64, 64);
-
-    var player = Player.init(witch.id, &input_mgr.controllers.items[0]);
-    _ = try g.spawn(Entity.initAt(render.Pos.init(256 + 128, 120, 0))
-        .withSprite(
-        sprite.Sprite{
-            .pos = .{ .y = -128 },
-            .width = 128,
-            .height = 128,
-            .source = sprite.makeAnimation(gen.getAnim(.necromancer_idle)),
-        },
-    ));
+    var player = Player.init(ronin.id, &input_mgr.controllers.items[0]);
 
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
     try debug.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -151,6 +103,7 @@ pub fn run() !void {
 
         try g.ySort();
         win.clear();
+        _ = try g.genQuads();
         try renderer.render(try g.genQuads());
         try debug.render();
         g.reset();

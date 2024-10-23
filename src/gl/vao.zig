@@ -116,7 +116,7 @@ pub fn setIndices(self: VAO, indices: []u32) void {
     self.bind();
     self.ebo.bind();
 
-    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), indices.ptr, c.GL_STREAM_DRAW);
+    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), indices.ptr, c.GL_DYNAMIC_DRAW);
 }
 
 pub fn setVertices(self: VAO, T: type, data: []T) void {
@@ -139,7 +139,7 @@ pub fn drawIndices(self: VAO, T: type, mode: DrawMode, data: []T, indices_per_it
 }
 
 fn setVertexData(T: type, data: []T) void {
-    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(data.len * @sizeOf(T)), data.ptr, c.GL_STREAM_DRAW);
+    c.glBufferData(c.GL_ARRAY_BUFFER, @intCast(data.len * @sizeOf(T)), data.ptr, c.GL_DYNAMIC_DRAW);
 }
 
 inline fn _draw(mode: DrawMode) void {

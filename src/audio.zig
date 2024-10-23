@@ -11,9 +11,10 @@ pub const Format = pcm.Format;
 const MAX_AUDIO_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB is the largest PCM buffer size allowed for in-memory buffer sources
 
 pub const Sound = enum {
-    speech,
-    bark,
-    bg_seeing_die_dog,
+    katana_swing_1,
+    katana_swing_2,
+    katana_swing_3,
+    katana_ring,
 };
 
 pub const State = enum {
@@ -29,7 +30,7 @@ pub const State = enum {
 
 pub const SoundIns = struct {
     state: State = .stop,
-    sound: Sound = .bark,
+    sound: Sound = .katana_swing_1,
     source: source.Source = .{ .empty = {} },
 
     _miniaudio_source: ?miniaudio.DataSource = null,
@@ -71,9 +72,10 @@ pub fn init(allocator: std.mem.Allocator, format: Format) !void {
     miniaudio.initSourceConfig();
 
     // TODO (soggy): consider validating that all initialized sources match the format specified for the device
-    try initSource(.speech, "assets/sounds/speech.wav");
-    try initSource(.bark, "assets/sounds/bark.wav");
-    try initSource(.bg_seeing_die_dog, "assets/sounds/seeingdiedog.wav");
+    try initSource(.katana_swing_1, "assets/sounds/sword_swing1.wav");
+    try initSource(.katana_swing_2, "assets/sounds/sword_swing2.wav");
+    try initSource(.katana_swing_3, "assets/sounds/sword_swing3.wav");
+    try initSource(.katana_ring, "assets/sounds/sword_ring.wav");
 
     const audioBytes: f32 = @floatFromInt(memBytes());
     log.info("memory reserved for sounds: {d}M", .{audioBytes / 1024 / 1024});

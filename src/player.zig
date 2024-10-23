@@ -3,6 +3,7 @@ const Controller = @import("input/controller.zig").Controller;
 const audio = @import("audio.zig");
 const game = @import("game.zig");
 const gen = @import("gen.zig");
+const random = @import("random.zig");
 
 const Dir = enum {
     up,
@@ -15,7 +16,7 @@ const PlayerErr = error{
     EntityNotFound,
 };
 
-const walk_speed = 256;
+const walk_speed = 340;
 
 const Player = @This();
 id: usize,
@@ -51,21 +52,27 @@ pub fn tick(self: *Player, _: f32) !void {
     }
 
     if (self.ctrl.getInput(.attack).pressed) {
-        _ = audio.play(.bark);
+        const attack_sounds = [_]audio.Sound{
+            .katana_swing_1,
+            .katana_swing_2,
+            .katana_swing_3,
+        };
+
+        _ = audio.play(attack_sounds[random.lessThan(3)]);
     }
 
     if (ent.speed.x < 0) {
-        ent.spr.h_flip = false;
-    }
-
-    if (ent.speed.x > 0) {
         ent.spr.h_flip = true;
     }
 
+    if (ent.speed.x > 0) {
+        ent.spr.h_flip = false;
+    }
+
     if (ent.speed.mag() > 0) {
-        ent.spr.setAnimation(gen.getAnim(.witch_witch_walk));
+        ent.spr.setAnimation(gen.getAnim(.ronin_run));
     } else {
-        ent.spr.setAnimation(gen.getAnim(.witch_idle_bounce));
+        ent.spr.setAnimation(gen.getAnim(.ronin_idle));
     }
 
     const mag = ent.speed.mag();
