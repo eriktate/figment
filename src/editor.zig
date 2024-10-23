@@ -43,7 +43,7 @@ pub fn run() !void {
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
     try input_mgr.init(alloc);
-    var win = try mwl.createWindow("Figment - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
+    var win = try mwl.createWindow("Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
     defer win.deinit();
 
     log.info("window initialized", .{});
@@ -103,7 +103,6 @@ pub fn run() !void {
 
         try g.ySort();
         win.clear();
-        _ = try g.genQuads();
         try renderer.render(try g.genQuads());
         try debug.render();
         g.reset();
@@ -114,7 +113,7 @@ pub fn run() !void {
         try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
         if (total_elapsed_time >= 1) {
             var buf: [256]u8 = undefined;
-            const title = try std.fmt.bufPrint(buf[0..], "Figment@{d}fps - *float*", .{frames});
+            const title = try std.fmt.bufPrint(buf[0..], "Mythic@{d}fps - *float*", .{frames});
             try win.setTitle(title);
             frames = 0;
             total_elapsed_time = 0;

@@ -136,6 +136,7 @@ pub fn drawIndices(self: VAO, T: type, mode: DrawMode, data: []T, indices_per_it
     self.ebo.bind();
     _drawIndices(mode, @intCast(data.len * indices_per_item));
     self.unbind();
+    c.glFlush();
 }
 
 fn setVertexData(T: type, data: []T) void {
