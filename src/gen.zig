@@ -8,6 +8,8 @@ pub const Anim = enum {
     ronin_run,
     ronin_idle,
     ronin_jump,
+    ronin_crest,
+    ronin_fall,
     ronin_wall_slide,
     ronin_flip,
     ronin_roll,
@@ -140,6 +142,8 @@ fn initAnims() std.EnumArray(Anim, []const sprite.Frame) {
                 .h = 48,
                 .duration = 100,
             },
+        });
+        map.set(.ronin_crest, &.{
             .{
                 .tex_pos = render.TexPos.init(1, 591),
                 .w = 48,
@@ -164,6 +168,8 @@ fn initAnims() std.EnumArray(Anim, []const sprite.Frame) {
                 .h = 48,
                 .duration = 100,
             },
+        });
+        map.set(.ronin_fall, &.{
             .{
                 .tex_pos = render.TexPos.init(201, 591),
                 .w = 48,

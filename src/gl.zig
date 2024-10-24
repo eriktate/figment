@@ -37,3 +37,8 @@ const BlendFactor = enum(c.GLenum) {
 pub fn blendFunc(sfactor: BlendFactor, dfactor: BlendFactor) void {
     c.glBlendFunc(@intFromEnum(sfactor), @intFromEnum(dfactor));
 }
+
+pub fn flush() void {
+    c.glFlush();
+    // c.glFinish();
+}

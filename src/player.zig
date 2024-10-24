@@ -5,11 +5,13 @@ const game = @import("game.zig");
 const gen = @import("gen.zig");
 const random = @import("random.zig");
 
-const Dir = enum {
-    up,
-    down,
-    left,
-    right,
+const State = enum {
+    idle,
+    run,
+    jump,
+    crest,
+    fall,
+    attack,
 };
 
 const PlayerErr = error{
@@ -21,34 +23,44 @@ const walk_speed = 340;
 const Player = @This();
 id: usize,
 ctrl: *Controller,
-dir: Dir = .right,
+state: State = .idle,
 
 pub fn init(id: usize, ctrl: *Controller) Player {
+    var ent = game.getGame().getEntityMut(id) catch @panic("invalid entity id for player");
+    ent.?.grav = 1500;
     return Player{
         .id = id,
         .ctrl = ctrl,
     };
 }
 
+fn handleState(self: *Player, ent: *Entity) void {
+    switch (self.state) {
+        .run => ent.spr.setAnimation(gen.getAnim(.ronin_run)),
+        .idle => ent.spr.setAnimation(gen.getAnim(.ronin_idle)),
+        .jump => ent.spr.setAnimation(gen.getAnim(.ronin_jump)),
+        .fall => ent.spr.setAnimation(gen.getAnim(.ronin_fall)),
+        .crest => ent.spr.setAnimation(gen.getAnim(.ronin_crest)),
+        .attack => ent.spr.setAnimation(gen.getAnim(.ronin_flip)),
+    }
+}
+
 pub fn tick(self: *Player, _: f32) !void {
-    var g = try game.getGame();
+    var g = game.getGame();
     var ent = (try g.getEntityMut(self.id)) orelse return PlayerErr.EntityNotFound;
-    ent.speed = .{ .x = 0, .y = 0 };
+    var x_input: f32 = 0;
+    const grounded = ent.collisionAt(ent.pos.add(.{ .y = 1 }), g.entities.items()) != null;
 
     if (self.ctrl.getInput(.left).isActive()) {
-        ent.speed.x = -1;
+        x_input = -1;
     }
 
     if (self.ctrl.getInput(.right).isActive()) {
-        ent.speed.x = 1;
+        x_input = 1;
     }
 
-    if (self.ctrl.getInput(.jump).isActive()) {
-        ent.speed.y = -1;
-    }
-
-    if (self.ctrl.getInput(.duck).isActive()) {
-        ent.speed.y = 1;
+    if (self.ctrl.getInput(.jump).pressed and grounded) {
+        ent.speed.y = -700;
     }
 
     if (self.ctrl.getInput(.attack).pressed) {
@@ -69,14 +81,37 @@ pub fn tick(self: *Player, _: f32) !void {
         ent.spr.h_flip = false;
     }
 
-    if (ent.speed.mag() > 0) {
-        ent.spr.setAnimation(gen.getAnim(.ronin_run));
-    } else {
-        ent.spr.setAnimation(gen.getAnim(.ronin_idle));
+    if (self.state == .crest and grounded) {
+        self.state = .idle;
     }
 
-    const mag = ent.speed.mag();
-    if (mag > 0) {
-        ent.speed = ent.speed.unit().scale(walk_speed);
+    defer self.handleState(ent);
+    ent.speed.x = x_input * walk_speed;
+
+    if (self.state == .crest) {
+        const anim = ent.spr.source.animation;
+        if (!anim.finished) {
+            return;
+        }
+    }
+
+    if (grounded) {
+        if (@abs(ent.speed.x) > 0) {
+            self.state = .run;
+        } else {
+            self.state = .idle;
+        }
+    } else {
+        if (ent.speed.y < 0 and self.state != .crest) {
+            self.state = .jump;
+        }
+
+        if (ent.speed.y > -50 and ent.speed.y < 0) {
+            self.state = .crest;
+        }
+
+        if (ent.speed.y > 0) {
+            self.state = .fall;
+        }
     }
 }

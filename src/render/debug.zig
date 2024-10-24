@@ -43,6 +43,7 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
         renderer.indices[index + 1] = vertex + 1;
     }
     renderer.vao.setIndices(renderer.indices);
+    renderer.vao.initVertexBuffer(Vertex, MAX_LINES * 2);
 
     renderer.vao.unbind();
     return renderer;

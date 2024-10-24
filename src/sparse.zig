@@ -71,6 +71,7 @@ pub fn Set(T: type) type {
                 self.lookup.items.len = 0; // if the list is empty, we can reset the lookup
             }
 
+            // TODO (soggy): I'm pretty sure the check at the top of the function catches this case
             if (self.data.items.len == 0) {
                 // consider erroring here, it would be weird to remove an ID from an empty list
                 return;

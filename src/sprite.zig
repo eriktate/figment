@@ -22,6 +22,7 @@ pub const Animation = struct {
     frames: []const Frame,
     current_frame: f32,
     frame_rate: f32,
+    finished: bool = false,
 
     pub fn init(frames: []const Frame) Animation {
         return .{
@@ -45,6 +46,7 @@ pub const Animation = struct {
         const frame_len: f32 = @floatFromInt(self.frames.len);
         if (self.current_frame >= frame_len) {
             self.current_frame = @mod(self.current_frame, frame_len);
+            self.finished = true;
         }
     }
 };

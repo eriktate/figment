@@ -1,3 +1,4 @@
+const std = @import("std");
 const render = @import("render.zig");
 const Pos = render.Pos;
 const Box = @import("box.zig");
@@ -12,6 +13,9 @@ pos: Pos = Pos.zero(),
 box: Box = Box.init(0, 0),
 spr: sprite.Sprite = sprite.Sprite{},
 speed: dim.Vec2(f32) = dim.Vec2(f32).zero(),
+accel: f32 = 0,
+grav: f32 = 0,
+friction: f32 = 0,
 /// defaults to 4k pixels because we don't want to limit speed by default
 max_speed: dim.Vec2(f32) = dim.Vec2(f32).init(1024 * 4, 1024 * 4),
 active: bool = true,
@@ -44,9 +48,11 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
     }
 
     self.spr.tick(dt);
+    self.speed.y += self.grav * dt;
 
-    const abs_clamped_speed = self.speed.abs().clamp(self.max_speed);
-    self.speed = abs_clamped_speed.mul(self.speed.sign());
+    // clamp speed
+    self.speed.x = std.math.clamp(self.speed.x, -self.max_speed.x, self.max_speed.x);
+    self.speed.y = std.math.clamp(self.speed.y, -self.max_speed.y, self.max_speed.y);
 
     const speed = Pos.init(self.speed.x, self.speed.y, 0).scale(dt);
     var new_pos = self.pos.add(speed);
@@ -54,10 +60,12 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
         new_pos = self.pos;
         if (self.collisionAt(self.pos.add(.{ .x = speed.x }), entities) == null) {
             new_pos = self.pos.add(.{ .x = speed.x });
+            self.speed.y = 0;
         }
 
         if (self.collisionAt(self.pos.add(.{ .y = speed.y }), entities) == null) {
             new_pos = self.pos.add(.{ .y = speed.y });
+            self.speed.x = 0;
         }
     }
 
@@ -76,11 +84,11 @@ pub fn getBox(self: Entity) Box {
     return self.box.at(self.pos);
 }
 
-pub fn collisionAt(self: Entity, pos: Pos, entities: []Entity) ?Entity {
+pub fn collisionAt(self: Entity, pos: Pos, entities: []const Entity) ?Entity {
     var self_box = self.box.at(pos);
 
     for (entities) |entity| {
-        if (entity.id == self.id) {
+        if (entity.id == self.id or entity.solid == false) {
             continue;
         }
 

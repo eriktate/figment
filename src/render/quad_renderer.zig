@@ -7,7 +7,7 @@ const Vertex = @import("primitives.zig").Vertex;
 const Quad = @import("primitives.zig").Quad;
 
 /// The maximum number of quads expected to ever be rendered, used for pre-generating the element array.
-const MAX_QUADS = 50_000;
+const MAX_QUADS = 100_000;
 
 /// A basic quad renderer that uses a single VAO and draw call.
 const QuadRenderer = @This();
@@ -51,7 +51,7 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
 
     renderer.vao.setIndices(indices);
     renderer.indices = indices;
-
+    renderer.vao.initVertexBuffer(Quad, MAX_QUADS);
     renderer.vao.unbind();
     return renderer;
 }

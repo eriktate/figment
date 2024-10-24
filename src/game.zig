@@ -4,24 +4,26 @@ const render = @import("render.zig");
 const Entity = @import("entity.zig");
 const sparse = @import("sparse.zig");
 
-const GameErr = error{
-    Uninitialized,
-};
+var game: Game = undefined;
+var game_initialized: bool = false;
 
-var game: ?Game = null;
+pub fn getGame() *Game {
+    std.debug.assert(game_initialized);
 
-pub fn getGame() !*Game {
-    if (game) |*g| {
-        return g;
-    }
-
-    return GameErr.Uninitialized;
+    return &game;
 }
+
+pub const Layer = enum {
+    walls,
+    enemies,
+    pickups,
+};
 
 /// Contains and manages global game state.
 pub const Game = struct {
     quads: std.ArrayList(render.Quad),
     entities: sparse.Set(Entity),
+    layers: std.EnumArray(Layer, std.ArrayList(usize)),
 
     pub fn spawn(self: *Game, entity: Entity) !*Entity {
         return try self.entities.add(entity);
@@ -86,9 +88,15 @@ pub const Game = struct {
 
 pub fn init(alloc: std.mem.Allocator) !*Game {
     game = Game{
-        .quads = try std.ArrayList(render.Quad).initCapacity(alloc, 2_000),
-        .entities = try sparse.Set(Entity).initCapacity(alloc, 2_000),
+        .quads = try std.ArrayList(render.Quad).initCapacity(alloc, 100_000),
+        .entities = try sparse.Set(Entity).initCapacity(alloc, 100_000),
+        .layers = std.EnumArray(Layer, std.ArrayList(usize)).initUndefined(),
     };
 
-    return &game.?;
+    for (0..game.layers.values.len) |idx| {
+        game.layers.set(@enumFromInt(idx), try std.ArrayList(usize).initCapacity(alloc, 100));
+    }
+
+    game_initialized = true;
+    return &game;
 }
