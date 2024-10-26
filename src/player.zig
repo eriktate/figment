@@ -20,7 +20,7 @@ const PlayerErr = error{
     EntityNotFound,
 };
 
-const walk_speed = 340;
+const run_speed = 340;
 
 const Player = @This();
 id: usize,
@@ -107,7 +107,7 @@ pub fn tick(self: *Player, _: f32) !void {
     }
 
     defer self.handleState(ent);
-    ent.speed.x = x_input * walk_speed;
+    ent.speed.x = x_input * run_speed;
 
     if (self.state == .crest) {
         const anim = ent.spr.source.animation;

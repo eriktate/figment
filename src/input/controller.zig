@@ -54,10 +54,10 @@ const ButtonMap = std.EnumArray(events.Button, Action);
 const AxisMap = std.EnumArray(events.Axis, AxisBind);
 const MouseMap = std.EnumArray(events.MouseButton, Action);
 
-// Allows for querying input state by Actions possible in game. The id is primarily used to query input state from the underlying
-// library (currently SDL3) and doubles as a way of differentiating between controllers. Technically, each Controller is bound to
-// a single gamepad, but can simultaneously hold keyboard binds. This means that keyboard binds can have effects across all Controllers.
-// If this isn't desired in the future, we can prevent key_maps from being processed when the Controller has a valid ID
+/// Allows for querying input state by Actions possible in game. The id is primarily used to query input state from the underlying
+/// library (currently SDL3) and doubles as a way of differentiating between controllers. Technically, each Controller is bound to
+/// a single gamepad, but can simultaneously hold keyboard binds. This means that keyboard binds can have effects across all Controllers.
+/// If this isn't desired in the future, we can prevent key_maps from being processed when the Controller has a valid ID
 pub const Controller = struct {
     id: usize,
     inputs: InputMap,
