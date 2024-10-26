@@ -1,9 +1,11 @@
 const Entity = @import("entity.zig");
 const Controller = @import("input/controller.zig").Controller;
+const Timer = @import("timer.zig");
 const audio = @import("audio.zig");
 const game = @import("game.zig");
 const gen = @import("gen.zig");
 const random = @import("random.zig");
+const log = @import("log.zig");
 
 const State = enum {
     idle,
@@ -24,10 +26,14 @@ const Player = @This();
 id: usize,
 ctrl: *Controller,
 state: State = .idle,
+coyote_timer: Timer = Timer.initMS(5 * 1000 / 60), // ~5 frames at 60fps
+grounded: bool = false,
+jumped: bool = false,
 
 pub fn init(id: usize, ctrl: *Controller) Player {
     var ent = game.getGame().getEntityMut(id) catch @panic("invalid entity id for player");
     ent.?.grav = 1500;
+    ent.?.solid = true;
     return Player{
         .id = id,
         .ctrl = ctrl,
@@ -50,6 +56,19 @@ pub fn tick(self: *Player, _: f32) !void {
     var ent = (try g.getEntityMut(self.id)) orelse return PlayerErr.EntityNotFound;
     var x_input: f32 = 0;
     const grounded = ent.collisionAt(ent.pos.add(.{ .y = 1 }), g.entities.items()) != null;
+    if (self.grounded and !grounded) {
+        if (!self.jumped) {
+            log.info("coyote start", .{});
+            self.coyote_timer.reset();
+        }
+    }
+
+    if (self.jumped and ent.speed.y >= 0) {
+        self.jumped = false;
+    }
+
+    self.grounded = grounded;
+    const can_jump = self.state != .jump and (grounded or !self.coyote_timer.isDone());
 
     if (self.ctrl.getInput(.left).isActive()) {
         x_input = -1;
@@ -59,7 +78,9 @@ pub fn tick(self: *Player, _: f32) !void {
         x_input = 1;
     }
 
-    if (self.ctrl.getInput(.jump).pressed and grounded) {
+    if (self.ctrl.getInput(.jump).pressed and can_jump) {
+        self.jumped = true;
+        self.coyote_timer.finish(); // prevent accidental double jumps
         ent.speed.y = -700;
     }
 

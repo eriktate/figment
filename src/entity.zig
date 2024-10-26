@@ -56,11 +56,21 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
 
     const speed = Pos.init(self.speed.x, self.speed.y, 0).scale(dt);
     var new_pos = self.pos.add(speed);
-    if (self.collisionAt(new_pos, entities) != null) {
+    // TODO (soggy): only checking collisions when solid is a short term performance hack,
+    // this should probably look different in the future
+    if (self.solid and self.collisionAt(new_pos, entities) != null) {
         new_pos = self.pos;
         if (self.collisionAt(self.pos.add(.{ .x = speed.x }), entities) == null) {
             new_pos = self.pos.add(.{ .x = speed.x });
-            self.speed.y = 0;
+            // makes ceiling/corner "bonks" a bit less brutal
+            if (self.speed.y < 0) {
+                self.speed.y = @min(self.speed.y * (1 - (30 * dt)), 0);
+            }
+
+            // hitting the floor should be an instant stop
+            if (self.speed.y > 0) {
+                self.speed.y = 0;
+            }
         }
 
         if (self.collisionAt(self.pos.add(.{ .y = speed.y }), entities) == null) {

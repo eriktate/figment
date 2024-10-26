@@ -71,7 +71,6 @@ pub const Controller = struct {
     }
 
     pub fn handleInputPress(c: *Controller, action: Action) void {
-        std.log.info("handleInputPress: {any}", .{action});
         if (action == .none) {
             return;
         }

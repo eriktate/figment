@@ -68,7 +68,7 @@ pub fn run() !void {
             .width = 48,
             .height = 48,
             .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
-        }).withBox(Box.initAt(.{ .x = 17, .y = -8 }, 14, 8)),
+        }).withBox(Box.initAt(.{ .x = 17, .y = -28 }, 14, 28)),
     );
     ronin.setScale(.{ .x = 2, .y = 2 });
 
@@ -79,6 +79,10 @@ pub fn run() !void {
     var obstacle = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 - 64, WINDOW_HEIGHT - 32 - 64, 0))
         .withBox(Box.init(128, 64)));
     obstacle.solid = true;
+
+    var ceiling = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 - 64, WINDOW_HEIGHT - 32 - 64 - 212, 0))
+        .withBox(Box.init(128, 64)));
+    ceiling.solid = true;
 
     var left_wall = try g.spawn(Entity.initAt(render.Pos.init(0, 0, 0))
         .withBox(Box.init(32, WINDOW_HEIGHT)));
@@ -93,16 +97,16 @@ pub fn run() !void {
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
     try debug.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    // log.info("initializing entities", .{});
-    // for (0..100) |_| {
-    //     _ = try g.spawn(Entity.initAt(
-    //         render.Pos.init(@floatFromInt(random.lessThan(900)), @floatFromInt(random.lessThan(490)), 0),
-    //     ).withSprite(sprite.Sprite{
-    //         .width = 48,
-    //         .height = 48,
-    //         .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
-    //     }));
-    // }
+    log.info("initializing entities", .{});
+    for (0..10) |_| {
+        _ = try g.spawn(Entity.initAt(
+            render.Pos.init(@floatFromInt(random.lessThan(900)), @floatFromInt(random.lessThan(490)), 0),
+        ).withSprite(sprite.Sprite{
+            .width = 48,
+            .height = 48,
+            .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
+        }));
+    }
 
     log.info("game initialized", .{});
     var last_time = win.getTime();
@@ -112,6 +116,7 @@ pub fn run() !void {
     var frames: usize = 0;
     log.info("begin game loop", .{});
     while (!input_mgr.quit) {
+        log.start(.loop);
         defer input_mgr.flush();
         defer last_time = current_time;
         current_time = win.getTime();
@@ -121,6 +126,7 @@ pub fn run() !void {
             try input_mgr.handleEvent(event);
         }
 
+        log.start(.update);
         // update player
         try player.tick(dt);
 
@@ -129,32 +135,44 @@ pub fn run() !void {
             ent.tick(dt, g.entities.itemsMut());
             try ent.drawDebug(&debug);
         }
+        log.finish(.update);
 
         // sorting is REALLY slow when starting with a large number of entities
+        log.start(.sort);
         try g.ySort();
-        win.clear();
-        _ = try g.genQuads();
+        log.finish(.sort);
 
+        log.start(.quads);
+        _ = try g.genQuads();
+        log.finish(.quads);
+
+        win.clear();
+        log.start(.render);
         try renderer.render(try g.genQuads());
+        log.finish(.render);
         try debug.render();
         // NOTE (soggy): for some reason calling glFlush before swapping results in a framerate boost of ~300%..?
         // Swapping ends up calling glFinish which blocks until all submitted GL commands have completed and all of
         // the pixels have been drawn, whereas glFlush does not block. So I wonder if this might eventually result
         // in flickering/tearing? Replacing glFlush with glFinish results in the same framerate we were seeing before
+        log.start(.swap);
         gl.flush();
         g.reset();
         win.swap();
+        log.finish(.swap);
+        log.finish(.loop);
 
         frames += 1;
         total_elapsed_time += dt;
-        // try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
+        try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
         if (total_elapsed_time >= 1) {
             var buf: [256]u8 = undefined;
             const title = try std.fmt.bufPrint(buf[0..], "Mythic@{d}fps - *float*", .{frames});
             try win.setTitle(title);
             frames = 0;
             total_elapsed_time = 0;
-            log.info("player speed: {any}", .{ronin.speed});
+            // log.stats();
+            log.reset();
         }
     }
 }
