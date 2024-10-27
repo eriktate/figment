@@ -1,48 +1,30 @@
 const std = @import("std");
 const c = @import("c");
+const log = @import("log.zig");
+
 const events = @import("input/events.zig");
 const controller = @import("input/controller.zig");
 
-fn generateBtnToGamepadMap() std.EnumArray(events.Button, c_int) {
-    comptime {
-        var map = std.EnumArray(events.Button, c_int).initUndefined();
-        map.set(.a, c.GLFW_GAMEPAD_BUTTON_A);
-        map.set(.b, c.GLFW_GAMEPAD_BUTTON_B);
-        map.set(.x, c.GLFW_GAMEPAD_BUTTON_X);
-        map.set(.y, c.GLFW_GAMEPAD_BUTTON_Y);
-        map.set(.select, c.GLFW_GAMEPAD_BUTTON_BACK);
-        map.set(.start, c.GLFW_GAMEPAD_BUTTON_START);
-        map.set(.up, c.GLFW_GAMEPAD_BUTTON_DPAD_UP);
-        map.set(.down, c.GLFW_GAMEPAD_BUTTON_DPAD_DOWN);
-        map.set(.left, c.GLFW_GAMEPAD_BUTTON_DPAD_LEFT);
-        map.set(.right, c.GLFW_GAMEPAD_BUTTON_DPAD_RIGHT);
-        map.set(.r1, c.GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER);
-        map.set(.r3, c.GLFW_GAMEPAD_BUTTON_RIGHT_THUMB);
-        map.set(.l1, c.GLFW_GAMEPAD_BUTTON_LEFT_BUMPER);
-        map.set(.l3, c.GLFW_GAMEPAD_BUTTON_LEFT_THUMB);
-
-        return map;
-    }
-}
-
+// the order is the mapping, so make sure the ordering doesn't change
 const gamepad_to_btn = [_]events.Button{
     .a,
     .b,
     .x,
     .y,
+    .l1,
+    .r1,
     .select,
     .start,
     .menu,
+    .l3,
+    .r3,
     .up,
+    .right,
     .down,
     .left,
-    .right,
-    .r1,
-    .r3,
-    .l1,
-    .l3,
 };
 
+/// reverses the gamepad_to_btn map into an EnumArray
 fn makeBtnToGamepadMap() std.EnumArray(events.Button, c_int) {
     comptime {
         var map = std.EnumArray(events.Button, c_int).initUndefined();
@@ -114,6 +96,28 @@ pub fn resolveKey(key: c_int) ?events.Key {
     };
 }
 
+const gamepad_to_axis = [_]events.Axis{
+    .l_stick_x,
+    .l_stick_y,
+    .r_stick_x,
+    .r_stick_y,
+    .l_trigger,
+    .r_trigger,
+};
+
+fn makeAxisToGamepadMap() std.EnumArray(events.Axis, c_int) {
+    comptime {
+        var map = std.EnumArray(events.Axis, c_int).initUndefined();
+        for (gamepad_to_axis, 0..) |axis, idx| {
+            map.set(axis, idx);
+        }
+
+        return map;
+    }
+}
+
+const axis_to_gamepad = makeAxisToGamepadMap();
+
 fn getGamepadButton(btn: events.Button) c_int {
     return btn_to_gamepad_btn.get(btn);
 }
@@ -140,15 +144,15 @@ pub fn captureGamepadState(ctrl: *controller.Controller) void {
     const gamepad_id: c_int = @intCast(ctrl.id);
     var gamepad_state: c.GLFWgamepadstate = undefined;
 
-    if (c.glfwGetGamepadState(gamepad_id, &gamepad_state) != 1) {
-        std.log.err("failed to get gamepad state", .{});
+    if (c.glfwGetGamepadState(gamepad_id, &gamepad_state) == c.GLFW_FALSE) {
+        // std.log.err("failed to get gamepad state for {d}", .{gamepad_id});
     }
 
     // simulate button events based on current gamepad state
     for (gamepad_to_btn, 0..) |btn, gamepad_btn| {
         const evt = events.Event{
             .button = .{
-                .id = gamepad_id,
+                .id = @intCast(gamepad_id),
                 .button = btn,
                 .pressed = gamepad_state.buttons[gamepad_btn] == 1,
             },
@@ -156,6 +160,39 @@ pub fn captureGamepadState(ctrl: *controller.Controller) void {
 
         ctrl.handleEvent(evt);
     }
+
+    for (gamepad_to_axis, 0..) |axis, gamepad_axis| {
+        const evt = events.Event{
+            .axis = .{
+                .id = @intCast(gamepad_id),
+                .axis = axis,
+                .strength = gamepad_state.axes[gamepad_axis],
+            },
+        };
+
+        ctrl.handleEvent(evt);
+    }
+}
+
+pub fn findFirstGamepad() usize {
+    for (c.GLFW_JOYSTICK_1..c.GLFW_JOYSTICK_LAST + 1) |id| {
+        log.info("checking joystick: {d}", .{id});
+        if (c.glfwJoystickPresent(@intCast(id)) == c.GLFW_TRUE) {
+            var axes_count: c_int = undefined;
+            if (c.glfwGetJoystickAxes(@intCast(id), &axes_count) == c.GLFW_FALSE) {
+                continue;
+            }
+
+            const name = c.glfwGetJoystickName(@intCast(id));
+            const guid = c.glfwGetJoystickGUID(@intCast(id));
+            if (axes_count > 4) {
+                log.info("found joystick {d}:'{s}' GUID={s}'", .{ id, name, guid });
+                return @intCast(id);
+            }
+        }
+    }
+
+    return 0;
 }
 
 pub fn getTime() f64 {

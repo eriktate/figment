@@ -231,7 +231,6 @@ fn defaultButtonMap() ButtonMap {
     button_map.set(.a, .jump);
     button_map.set(.x, .attack);
     button_map.set(.r1, .dash);
-    button_map.set(.r1, .dash);
     button_map.set(.start, .pause);
 
     return button_map;

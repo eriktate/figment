@@ -44,9 +44,11 @@ pub fn run() !void {
 
     _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
-    try input_mgr.init(alloc);
     var win = try mwl.createWindow("Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
     defer win.deinit();
+
+    // init inputs after window because certain configs may require a valid window/context
+    try input_mgr.init(alloc);
 
     log.info("window initialized", .{});
 
@@ -121,7 +123,7 @@ pub fn run() !void {
         current_time = win.getTime();
         dt = @floatCast(current_time - last_time);
 
-        if (try win.poll()) |event| {
+        if (try win.poll(input_mgr.controllers.items)) |event| {
             try input_mgr.handleEvent(event);
         }
 

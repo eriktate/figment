@@ -1,7 +1,9 @@
 const std = @import("std");
 const events = @import("events.zig");
-const Controller = @import("controller.zig").Controller;
 const glfw = @import("../glfw.zig");
+const log = @import("../log.zig");
+
+const Controller = @import("controller.zig").Controller;
 
 pub var ready: bool = false;
 pub var quit: bool = false;
@@ -12,7 +14,8 @@ pub fn init(alloc: std.mem.Allocator) !void {
     // init gamepads through backend here
     // if no controllers are given, we'll just attach a controller for keyboard use
     if (controllers.items.len == 0) {
-        try controllers.append(Controller.init(0));
+        // TODO (soggy): this assumes glfw backend and will break if any others are used
+        try controllers.append(Controller.init(glfw.findFirstGamepad()));
     }
 
     ready = true;
@@ -24,7 +27,10 @@ pub fn deinit() void {
 
 fn handleDeviceEvent(ev: events.DeviceEvent) !void {
     switch (ev.change) {
-        .added => try controllers.append(ev.controller.?),
+        .added => {
+            log.info("adding controller", .{});
+            return try controllers.append(ev.controller.?);
+        },
         .removed => {
             for (controllers.items, 0..) |ctrl, idx| {
                 if (ctrl.id == ev.id) {

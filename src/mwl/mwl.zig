@@ -5,6 +5,8 @@ const events = @import("../input/events.zig");
 const config = @import("config");
 const assert = std.debug.assert;
 
+const Controller = @import("../input/controller.zig").Controller;
+
 const MAX_TITLE_LEN = 256;
 
 pub const Backend = enum {
@@ -74,8 +76,8 @@ pub const Window = struct {
         return self._backend.getTime();
     }
 
-    pub fn poll(self: *Window) !?events.Event {
-        return self._backend.poll();
+    pub fn poll(self: *Window, controllers: []Controller) !?events.Event {
+        return self._backend.poll(controllers);
     }
 
     pub fn clear(_: Window) void {

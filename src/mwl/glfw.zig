@@ -1,13 +1,13 @@
 const std = @import("std");
 const c = @import("c");
+const events = @import("../input/events.zig");
+const glfw = @import("../glfw.zig");
 
+const Controller = @import("../input/controller.zig").Controller;
 const WinOpts = @import("mwl.zig").WinOpts;
 const WinErr = @import("mwl.zig").WinErr;
 const Mode = @import("mwl.zig").Mode;
-const glfw = @import("../glfw.zig");
-const input_mgr = @import("../input/manager.zig");
 const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
-const events = @import("../input/events.zig");
 
 const MAX_INPUT_BUFFER = 64;
 
@@ -35,8 +35,11 @@ pub const Window = struct {
         return c.glfwGetTime();
     }
 
-    pub fn poll(_: Window) !?events.Event {
+    pub fn poll(_: Window, controllers: []Controller) !?events.Event {
         c.glfwPollEvents();
+        for (controllers) |*ctrl| {
+            glfw.captureGamepadState(ctrl);
+        }
         return event_buffer.next();
     }
 
