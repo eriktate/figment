@@ -1,3 +1,4 @@
+const std = @import("std");
 const audio = @import("audio.zig");
 const game = @import("game.zig");
 const gen = @import("gen.zig");
@@ -17,6 +18,7 @@ const State = enum {
     fall,
     attack,
     dash,
+    slide,
 };
 
 const PlayerErr = error{
@@ -24,7 +26,7 @@ const PlayerErr = error{
 };
 
 const RUN_SPEED = 170;
-const DASH_SPEED = RUN_SPEED * 3; // also max air speed
+const DASH_SPEED: comptime_float = RUN_SPEED * 2.5; // also max air speed
 const GRAV = 1500;
 const MAX_DASHES = 1;
 const JUMP_FORCE = 500;
@@ -46,10 +48,11 @@ coyote_timer: Timer = Timer.initMS(5 * 1000 / 60), // ~5 frames at 60fps
 dash_timer: Timer = Timer.initMS(250),
 dash_cd: Timer = Timer.initMS(250),
 grav: f32 = GRAV,
-friction: f32 = 1500,
+friction: f32 = 2500,
+slide_friction: f32 = 500,
 air_friction: f32 = 100,
 accel: dim.Vec2(f32) = .{ .x = 1500 },
-air_accel: dim.Vec2(f32) = .{ .x = 300 },
+air_accel: dim.Vec2(f32) = .{ .x = 500 },
 max_speed: dim.Vec2(f32) = .{ .x = DASH_SPEED, .y = MAX_FALL_SPEED },
 
 pub fn init(id: usize, ctrl: *Controller) Player {
@@ -71,18 +74,46 @@ fn handleSprite(self: *Player, ent: *Entity) void {
         .crest => ent.spr.setAnimation(gen.getAnim(.ronin_crest)),
         .attack => ent.spr.setAnimation(gen.getAnim(.ronin_flip)),
         .dash => ent.spr.setAnimation(gen.getAnim(.ronin_flip)),
+        .slide => ent.spr.setAnimation(gen.getAnim(.ronin_slide)),
+    }
+
+    if (ent.speed.x < 0) {
+        ent.spr.h_flip = true;
+    }
+
+    if (ent.speed.x > 0) {
+        ent.spr.h_flip = false;
     }
 }
 
 fn updateEnt(self: *Player, ent: *Entity) void {
     ent.grav = self.grav;
     ent.max_speed = self.max_speed;
-    if (self.grounded) {
-        ent.friction = self.friction;
-        ent.accel = self.accel.scale(self.x_dir);
-    } else {
-        ent.friction = self.air_friction;
-        ent.accel = self.air_accel.scale(self.x_dir);
+    switch (self.state) {
+        .dash => {
+            ent.accel = .{};
+            ent.friction = 0;
+        },
+        .slide => {
+            ent.accel = .{};
+            ent.friction = self.slide_friction;
+        },
+        .jump, .fall, .crest => {
+            ent.friction = self.air_friction;
+            ent.accel = self.air_accel.scale(self.x_dir);
+            // prevent adding acceleration while airborn just by using movement keys
+            if (@abs(ent.speed.x) > RUN_SPEED and std.math.sign(self.x_dir) == std.math.sign(ent.speed.x)) {
+                ent.accel = .{};
+                ent.friction = 0;
+            }
+        },
+        else => {
+            ent.friction = self.friction;
+            ent.accel = self.accel.scale(self.x_dir);
+            if (@abs(ent.speed.x) > RUN_SPEED) {
+                ent.accel = .{};
+            }
+        },
     }
 }
 
@@ -97,13 +128,14 @@ inline fn dash(self: *Player, ent: *Entity) void {
     self.dash_timer.reset();
     self.state = .dash;
     ent.speed.y = 0;
-    ent.speed.x = @floatFromInt(DASH_SPEED * self.facing);
+    ent.speed.x = DASH_SPEED * @as(f32, @floatFromInt(self.facing));
 }
 
 inline fn handleJump(self: *Player, ent: *Entity) void {
     const can_jump = self.state != .jump and (self.grounded or !self.coyote_timer.isDone());
 
-    if (self.ctrl.getInput(.jump).pressed and can_jump) {
+    const jump_input = self.ctrl.getInput(.jump);
+    if (jump_input.pressed and can_jump) {
         if (self.state == .dash) {
             self.dash_timer.reset();
             self.dash_cd.reset();
@@ -112,6 +144,11 @@ inline fn handleJump(self: *Player, ent: *Entity) void {
         self.coyote_timer.finish(); // prevent accidental double jumps
         ent.speed.y = -JUMP_FORCE;
         self.state = .jump;
+    }
+
+    // variable jump height
+    if (ent.speed.y < 0 and jump_input.released) {
+        ent.speed.y /= 2;
     }
 }
 
@@ -124,7 +161,6 @@ pub fn tick(self: *Player, _: f32) !void {
     const grounded = ent.collisionAt(ent.pos.add(.{ .y = 1 }), g.entities.items()) != null;
     if (self.grounded and !grounded) {
         if (!self.jumped) {
-            log.info("coyote start", .{});
             self.coyote_timer.reset();
         }
     }
@@ -145,6 +181,21 @@ pub fn tick(self: *Player, _: f32) !void {
 
     if (self.jumped and ent.speed.y >= 0) {
         self.jumped = false;
+    }
+
+    if (self.grounded and self.ctrl.getInput(.duck).isActive() and self.state != .jump) {
+        if (@abs(ent.speed.x) > RUN_SPEED) {
+            self.state = .slide;
+            return;
+        }
+    }
+
+    if (self.state == .slide) {
+        if (ent.speed.x < 2 or !self.ctrl.getInput(.duck).isActive()) {
+            self.state = .idle;
+        } else {
+            return;
+        }
     }
 
     self.x_dir = 0;
@@ -171,14 +222,6 @@ pub fn tick(self: *Player, _: f32) !void {
     if (self.ctrl.getInput(.dash).pressed and self.canDash()) {
         self.dash(ent);
         return;
-    }
-
-    if (ent.speed.x < 0) {
-        ent.spr.h_flip = true;
-    }
-
-    if (ent.speed.x > 0) {
-        ent.spr.h_flip = false;
     }
 
     if (self.state == .crest and grounded) {

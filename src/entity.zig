@@ -55,7 +55,7 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
     const abs_x_speed = @abs(self.speed.x);
     if (self.accel.x == 0 and abs_x_speed > 0) {
         self.speed.x -= self.friction * dt * std.math.sign(self.speed.x);
-        if (abs_x_speed < 0.001) {
+        if (abs_x_speed < 1) {
             self.speed.x = 0;
         }
     }
