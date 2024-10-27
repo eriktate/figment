@@ -24,10 +24,12 @@ const gl = @import("gl.zig");
 const random = @import("random.zig");
 const Camera = @import("camera.zig");
 
-const WINDOW_WIDTH = 960;
-const WINDOW_HEIGHT = 540;
-const VIEW_WIDTH = WINDOW_WIDTH / 2;
-const VIEW_HEIGHT = WINDOW_HEIGHT / 2;
+const WINDOW_WIDTH = 1920;
+const WINDOW_HEIGHT = 1080;
+const WORLD_WIDTH = 960;
+const WORLD_HEIGHT = 540;
+const VIEW_WIDTH = WINDOW_WIDTH / 3;
+const VIEW_HEIGHT = WINDOW_HEIGHT / 3;
 
 pub fn run() !void {
     log.info("starting editor", .{});
@@ -74,34 +76,34 @@ pub fn run() !void {
         }).withBox(Box.initAt(.{ .x = 17, .y = -28 }, 14, 28)),
     );
 
-    var ground = try g.spawn(Entity.initAt(render.Pos.init(0, WINDOW_HEIGHT - 32, 0))
-        .withBox(Box.init(WINDOW_WIDTH, 32)));
+    var ground = try g.spawn(Entity.initAt(render.Pos.init(0, WORLD_HEIGHT - 32, 0))
+        .withBox(Box.init(WORLD_WIDTH, 32)));
     ground.solid = true;
 
-    var obstacle = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 - 64, WINDOW_HEIGHT - 32 - 64, 0))
+    var obstacle = try g.spawn(Entity.initAt(render.Pos.init(WORLD_WIDTH / 2 - 64, WORLD_HEIGHT - 32 - 64, 0))
         .withBox(Box.init(128, 64)));
     obstacle.solid = true;
 
-    var obstacle2 = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 + 256, WINDOW_HEIGHT - 32 - 64 - 64, 0))
+    var obstacle2 = try g.spawn(Entity.initAt(render.Pos.init(WORLD_WIDTH / 2 + 256, WORLD_HEIGHT - 32 - 64 - 64, 0))
         .withBox(Box.init(128, 64)));
     obstacle2.solid = true;
 
-    var ceiling = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 - 64, WINDOW_HEIGHT - 32 - 64 - 212, 0))
+    var ceiling = try g.spawn(Entity.initAt(render.Pos.init(WORLD_WIDTH / 2 - 64, WORLD_HEIGHT - 32 - 64 - 212, 0))
         .withBox(Box.init(128, 64)));
     ceiling.solid = true;
 
     var left_wall = try g.spawn(Entity.initAt(render.Pos.init(0, 0, 0))
-        .withBox(Box.init(32, WINDOW_HEIGHT)));
+        .withBox(Box.init(32, WORLD_HEIGHT)));
     left_wall.solid = true;
 
-    var right_wall = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH - 32, 0, 0))
-        .withBox(Box.init(32, WINDOW_HEIGHT)));
+    var right_wall = try g.spawn(Entity.initAt(render.Pos.init(WORLD_WIDTH - 32, 0, 0))
+        .withBox(Box.init(32, WORLD_HEIGHT)));
     right_wall.solid = true;
 
     var player = Player.init(ronin.id, &input_mgr.controllers.items[0]);
 
-    try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
-    try debug.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
+    try renderer.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
+    try debug.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
 
     // for (0..10) |_| {
     //     _ = try g.spawn(Entity.initAt(
@@ -120,7 +122,7 @@ pub fn run() !void {
     var total_elapsed_time: f32 = 0;
     var frames: usize = 0;
     log.info("begin game loop", .{});
-    var cam = Camera.init(WINDOW_WIDTH, WINDOW_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
+    var cam = Camera.init(WORLD_WIDTH, WORLD_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
     while (!input_mgr.quit) {
         log.start(.loop);
         defer input_mgr.flush();
