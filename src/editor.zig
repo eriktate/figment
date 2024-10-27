@@ -61,7 +61,7 @@ pub fn run() !void {
         .source = .{ .frame = gen.getFrame(.bg_dungeon) },
     }));
 
-    var ronin = try g.spawn(
+    const ronin = try g.spawn(
         Entity.initAt(render.Pos.init(512, 128, 0))
             .withSprite(sprite.Sprite{
             .pos = .{ .y = -48 },
@@ -70,7 +70,6 @@ pub fn run() !void {
             .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
         }).withBox(Box.initAt(.{ .x = 17, .y = -28 }, 14, 28)),
     );
-    ronin.setScale(.{ .x = 2, .y = 2 });
 
     var ground = try g.spawn(Entity.initAt(render.Pos.init(0, WINDOW_HEIGHT - 32, 0))
         .withBox(Box.init(WINDOW_WIDTH, 32)));

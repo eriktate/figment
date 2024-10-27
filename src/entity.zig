@@ -1,10 +1,11 @@
 const std = @import("std");
 const render = @import("render.zig");
-const Pos = render.Pos;
-const Box = @import("box.zig");
 const dim = @import("dim.zig");
 const sprite = @import("sprite.zig");
 const log = @import("log.zig");
+
+const Box = @import("box.zig");
+const Pos = render.Pos;
 
 pub const Entity = @This();
 id: usize = 0,
@@ -13,11 +14,11 @@ pos: Pos = Pos.zero(),
 box: Box = Box.init(0, 0),
 spr: sprite.Sprite = sprite.Sprite{},
 speed: dim.Vec2(f32) = dim.Vec2(f32).zero(),
-accel: f32 = 0,
+accel: dim.Vec2(f32) = dim.Vec2(f32).zero(),
 grav: f32 = 0,
 friction: f32 = 0,
 /// defaults to 4k pixels because we don't want to limit speed by default
-max_speed: dim.Vec2(f32) = dim.Vec2(f32).init(1024 * 4, 1024 * 4),
+max_speed: dim.Vec2(f32) = dim.Vec2(f32).init(500, 500),
 active: bool = true,
 
 pub fn init() Entity {
@@ -49,6 +50,15 @@ pub fn tick(self: *Entity, dt: f32, entities: []Entity) void {
 
     self.spr.tick(dt);
     self.speed.y += self.grav * dt;
+
+    self.speed = self.speed.add(self.accel.scale(dt));
+    const abs_x_speed = @abs(self.speed.x);
+    if (self.accel.x == 0 and abs_x_speed > 0) {
+        self.speed.x -= self.friction * dt * std.math.sign(self.speed.x);
+        if (abs_x_speed < 0.001) {
+            self.speed.x = 0;
+        }
+    }
 
     // clamp speed
     self.speed.x = std.math.clamp(self.speed.x, -self.max_speed.x, self.max_speed.x);

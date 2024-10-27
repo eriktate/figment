@@ -1,11 +1,13 @@
-const Entity = @import("entity.zig");
-const Controller = @import("input/controller.zig").Controller;
-const Timer = @import("timer.zig");
 const audio = @import("audio.zig");
 const game = @import("game.zig");
 const gen = @import("gen.zig");
 const random = @import("random.zig");
 const log = @import("log.zig");
+const dim = @import("dim.zig");
+
+const Entity = @import("entity.zig");
+const Controller = @import("input/controller.zig").Controller;
+const Timer = @import("timer.zig");
 
 const State = enum {
     idle,
@@ -21,26 +23,39 @@ const PlayerErr = error{
     EntityNotFound,
 };
 
-const RUN_SPEED = 340;
+const RUN_SPEED = 170;
+const DASH_SPEED = RUN_SPEED * 3; // also max air speed
 const GRAV = 1500;
 const MAX_DASHES = 1;
+const JUMP_FORCE = 500;
+const MAX_FALL_SPEED = 4000;
 
 const Player = @This();
+// critical state
 id: usize,
 ctrl: *Controller,
 state: State = .idle,
+facing: i32 = 1,
+grounded: bool = false,
+jumped: bool = false, // added this to get around coyote time activating on jumps
+dashes: u8 = MAX_DASHES,
+x_dir: f32 = 0,
+
+// configurations
 coyote_timer: Timer = Timer.initMS(5 * 1000 / 60), // ~5 frames at 60fps
 dash_timer: Timer = Timer.initMS(250),
 dash_cd: Timer = Timer.initMS(250),
-grounded: bool = false,
-jumped: bool = false, // added this to get around coyote time activating on jumps
-dashes: u8 = 1,
 grav: f32 = GRAV,
-facing: i32 = 1,
+friction: f32 = 1500,
+air_friction: f32 = 100,
+accel: dim.Vec2(f32) = .{ .x = 1500 },
+air_accel: dim.Vec2(f32) = .{ .x = 300 },
+max_speed: dim.Vec2(f32) = .{ .x = DASH_SPEED, .y = MAX_FALL_SPEED },
 
 pub fn init(id: usize, ctrl: *Controller) Player {
     var ent = game.getGame().getEntityMut(id) catch @panic("invalid entity id for player");
     ent.?.solid = true;
+    ent.?.max_speed = .{ .x = DASH_SPEED, .y = MAX_FALL_SPEED };
     return Player{
         .id = id,
         .ctrl = ctrl,
@@ -61,6 +76,14 @@ fn handleSprite(self: *Player, ent: *Entity) void {
 
 fn updateEnt(self: *Player, ent: *Entity) void {
     ent.grav = self.grav;
+    ent.max_speed = self.max_speed;
+    if (self.grounded) {
+        ent.friction = self.friction;
+        ent.accel = self.accel.scale(self.x_dir);
+    } else {
+        ent.friction = self.air_friction;
+        ent.accel = self.air_accel.scale(self.x_dir);
+    }
 }
 
 inline fn canDash(self: *Player) bool {
@@ -74,19 +97,21 @@ inline fn dash(self: *Player, ent: *Entity) void {
     self.dash_timer.reset();
     self.state = .dash;
     ent.speed.y = 0;
-    ent.speed.x = @floatFromInt(RUN_SPEED * 2 * self.facing);
+    ent.speed.x = @floatFromInt(DASH_SPEED * self.facing);
 }
 
 inline fn handleJump(self: *Player, ent: *Entity) void {
     const can_jump = self.state != .jump and (self.grounded or !self.coyote_timer.isDone());
 
     if (self.ctrl.getInput(.jump).pressed and can_jump) {
+        if (self.state == .dash) {
+            self.dash_timer.reset();
+            self.dash_cd.reset();
+        }
         self.jumped = true;
         self.coyote_timer.finish(); // prevent accidental double jumps
-        ent.speed.y = -700;
+        ent.speed.y = -JUMP_FORCE;
         self.state = .jump;
-        self.dash_timer.reset();
-        self.dash_cd.reset();
     }
 }
 
@@ -96,16 +121,6 @@ pub fn tick(self: *Player, _: f32) !void {
     defer self.handleSprite(ent);
     defer self.updateEnt(ent);
 
-    self.handleJump(ent);
-    if (self.state == .dash) {
-        if (!self.dash_timer.isDone()) {
-            return;
-        }
-
-        self.dash_cd.reset();
-    }
-
-    var x_input: f32 = 0;
     const grounded = ent.collisionAt(ent.pos.add(.{ .y = 1 }), g.entities.items()) != null;
     if (self.grounded and !grounded) {
         if (!self.jumped) {
@@ -114,23 +129,32 @@ pub fn tick(self: *Player, _: f32) !void {
         }
     }
 
-    if (grounded) {
+    self.grounded = grounded;
+    if (self.grounded) {
         self.dashes = MAX_DASHES;
+    }
+
+    self.handleJump(ent); // need to handle jumps before dash bails on other inputs
+    if (self.state == .dash) {
+        if (!self.dash_timer.isDone()) {
+            return;
+        }
+
+        self.dash_cd.reset();
     }
 
     if (self.jumped and ent.speed.y >= 0) {
         self.jumped = false;
     }
 
-    self.grounded = grounded;
-
+    self.x_dir = 0;
     if (self.ctrl.getInput(.left).isActive()) {
-        x_input = -1;
+        self.x_dir = -1;
         self.facing = -1;
     }
 
     if (self.ctrl.getInput(.right).isActive()) {
-        x_input = 1;
+        self.x_dir = 1;
         self.facing = 1;
     }
 
@@ -160,8 +184,6 @@ pub fn tick(self: *Player, _: f32) !void {
     if (self.state == .crest and grounded) {
         self.state = .idle;
     }
-
-    ent.speed.x = x_input * RUN_SPEED;
 
     if (self.state == .crest) {
         const anim = ent.spr.source.animation;
