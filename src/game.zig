@@ -29,9 +29,14 @@ pub const Game = struct {
         return try self.entities.add(entity);
     }
 
+    pub fn getEntity(self: *Game, id: usize) !?Entity {
+        return self.entities.get(id);
+    }
+
     pub fn getEntityMut(self: *Game, id: usize) !?*Entity {
         return self.entities.getMut(id);
     }
+
     pub fn reset(self: *Game) void {
         // log.info("entities={d} quads={d}", .{ self.entities.items.len, self.quads.items.len });
         self.quads.items.len = 0;

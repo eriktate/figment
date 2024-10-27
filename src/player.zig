@@ -59,6 +59,7 @@ pub fn init(id: usize, ctrl: *Controller) Player {
     var ent = game.getGame().getEntityMut(id) catch @panic("invalid entity id for player");
     ent.?.solid = true;
     ent.?.max_speed = .{ .x = DASH_SPEED, .y = MAX_FALL_SPEED };
+    log.info("initializing player with ent_id={d}", .{id});
     return Player{
         .id = id,
         .ctrl = ctrl,

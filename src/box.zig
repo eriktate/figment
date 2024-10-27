@@ -57,6 +57,10 @@ pub fn overlaps(self: Box, other: Box) bool {
     return !(self.pos.x > other.pos.x + other.w or self.pos.x + self.w < other.pos.x or self.pos.y + self.h < other.pos.y or self.pos.y > other.pos.y + other.h);
 }
 
+pub fn overlapsPos(self: Box, pos: Pos) bool {
+    return !(pos.x < self.pos.x or pos.x > self.pos.x + self.w or self.pos.y < self.pos.y or self.pos.y > self.pos.y + self.h);
+}
+
 test "boxes overlap" {
     const t = std.testing;
     const box = Box.init(16, 16);

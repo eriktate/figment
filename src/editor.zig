@@ -22,11 +22,12 @@ const Player = @import("player.zig");
 const Box = @import("box.zig");
 const gl = @import("gl.zig");
 const random = @import("random.zig");
+const Camera = @import("camera.zig");
 
 const WINDOW_WIDTH = 960;
 const WINDOW_HEIGHT = 540;
-const VIEW_WIDTH = 960;
-const VIEW_HEIGHT = 540;
+const VIEW_WIDTH = WINDOW_WIDTH / 2;
+const VIEW_HEIGHT = WINDOW_HEIGHT / 2;
 
 pub fn run() !void {
     log.info("starting editor", .{});
@@ -119,6 +120,7 @@ pub fn run() !void {
     var total_elapsed_time: f32 = 0;
     var frames: usize = 0;
     log.info("begin game loop", .{});
+    var cam = Camera.init(WINDOW_WIDTH, WINDOW_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
     while (!input_mgr.quit) {
         log.start(.loop);
         defer input_mgr.flush();
@@ -150,11 +152,18 @@ pub fn run() !void {
         _ = try g.genQuads();
         log.finish(.quads);
 
-        win.clear();
+        if (try g.getEntity(1)) |r| {
+            // log.info("ronin pos=({d}, {d})", .{ r.pos.x, r.pos.y });
+            cam.lookAt(r.pos);
+        }
+        try renderer.setProjection(cam.projection());
+        try debug.setProjection(cam.projection());
+
         log.start(.render);
+        win.clear();
         try renderer.render(try g.genQuads());
-        log.finish(.render);
         try debug.render();
+        log.finish(.render);
         // NOTE (soggy): for some reason calling glFlush before swapping results in a framerate boost of ~300%..?
         // Swapping ends up calling glFinish which blocks until all submitted GL commands have completed and all of
         // the pixels have been drawn, whereas glFlush does not block. So I wonder if this might eventually result
@@ -176,6 +185,7 @@ pub fn run() !void {
             frames = 0;
             total_elapsed_time = 0;
             // log.stats();
+            log.info("camera target=({d}, {d})", .{ cam.pos.x, cam.pos.y });
             log.reset();
         }
     }

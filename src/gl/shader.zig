@@ -114,7 +114,7 @@ pub fn setUniform(self: Shader, comptime T: type, name: []const u8, val: T) !voi
         f64 => c.glUniform1d(loc, val),
         u32 => c.glUniform1ui(loc, val),
         i32 => c.glUniform1i(loc, val),
-        dim.Mat4(f32) => c.glUniformMatrix4fv(loc, 1, c.GL_FALSE, &val),
+        dim.Mat4(f32) => c.glUniformMatrix4fv(loc, 1, c.GL_FALSE, @ptrCast(&val)),
         else => @compileError("invalid type for shader uniform"),
     }
 }

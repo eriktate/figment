@@ -64,8 +64,8 @@ pub fn setWorldDimensions(self: *DebugRenderer, width: u16, height: u16) !void {
     try self.shader.setUniform(u32, "world_height", @intCast(height));
 }
 
-pub fn setProjection(self: *DebugRenderer, proj: dim.Mat4) !void {
-    try self.shader.setUniform(dim.Mat4, "projection", proj);
+pub fn setProjection(self: *DebugRenderer, proj: dim.Mat4(f32)) !void {
+    try self.shader.setUniform(dim.Mat4(f32), "projection", proj);
 }
 
 pub fn pushLine(self: *DebugRenderer, from: r.Pos, to: r.Pos) !void {
