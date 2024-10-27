@@ -25,7 +25,7 @@ const PlayerErr = error{
     EntityNotFound,
 };
 
-const RUN_SPEED = 170;
+const RUN_SPEED: comptime_float = 170;
 const DASH_SPEED: comptime_float = RUN_SPEED * 2.5; // also max air speed
 const GRAV = 1500;
 const MAX_DASHES = 1;
@@ -66,6 +66,8 @@ pub fn init(id: usize, ctrl: *Controller) Player {
 }
 
 fn handleSprite(self: *Player, ent: *Entity) void {
+    ent.spr.setFrameRate(1);
+
     switch (self.state) {
         .run => ent.spr.setAnimation(gen.getAnim(.ronin_run)),
         .idle => ent.spr.setAnimation(gen.getAnim(.ronin_idle)),
@@ -73,7 +75,10 @@ fn handleSprite(self: *Player, ent: *Entity) void {
         .fall => ent.spr.setAnimation(gen.getAnim(.ronin_fall)),
         .crest => ent.spr.setAnimation(gen.getAnim(.ronin_crest)),
         .attack => ent.spr.setAnimation(gen.getAnim(.ronin_flip)),
-        .dash => ent.spr.setAnimation(gen.getAnim(.ronin_flip)),
+        .dash => {
+            ent.spr.setFrameRate(2);
+            ent.spr.setAnimation(gen.getAnim(.ronin_flip));
+        },
         .slide => ent.spr.setAnimation(gen.getAnim(.ronin_slide)),
     }
 
@@ -170,7 +175,6 @@ pub fn tick(self: *Player, _: f32) !void {
         self.dashes = MAX_DASHES;
     }
 
-    self.handleJump(ent); // need to handle jumps before dash bails on other inputs
     if (self.state == .dash) {
         if (!self.dash_timer.isDone()) {
             return;
@@ -178,20 +182,21 @@ pub fn tick(self: *Player, _: f32) !void {
 
         self.dash_cd.reset();
     }
+    self.handleJump(ent); // handleJump after potential bail out for dash to prevent jumping while dashing
 
     if (self.jumped and ent.speed.y >= 0) {
         self.jumped = false;
     }
 
     if (self.grounded and self.ctrl.getInput(.duck).isActive() and self.state != .jump) {
-        if (@abs(ent.speed.x) > RUN_SPEED) {
+        if (@abs(ent.speed.x) > DASH_SPEED - (DASH_SPEED - RUN_SPEED) / 2.0) {
             self.state = .slide;
             return;
         }
     }
 
-    if (self.state == .slide) {
-        if (ent.speed.x < 2 or !self.ctrl.getInput(.duck).isActive()) {
+    if (self.grounded and self.state == .slide) {
+        if (@abs(ent.speed.x) < 2 or !self.ctrl.getInput(.duck).isActive()) {
             self.state = .idle;
         } else {
             return;

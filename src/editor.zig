@@ -81,6 +81,10 @@ pub fn run() !void {
         .withBox(Box.init(128, 64)));
     obstacle.solid = true;
 
+    var obstacle2 = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 + 256, WINDOW_HEIGHT - 32 - 64 - 64, 0))
+        .withBox(Box.init(128, 64)));
+    obstacle2.solid = true;
+
     var ceiling = try g.spawn(Entity.initAt(render.Pos.init(WINDOW_WIDTH / 2 - 64, WINDOW_HEIGHT - 32 - 64 - 212, 0))
         .withBox(Box.init(128, 64)));
     ceiling.solid = true;
@@ -98,16 +102,15 @@ pub fn run() !void {
     try renderer.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
     try debug.setWorldDimensions(WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    log.info("initializing entities", .{});
-    for (0..10) |_| {
-        _ = try g.spawn(Entity.initAt(
-            render.Pos.init(@floatFromInt(random.lessThan(900)), @floatFromInt(random.lessThan(490)), 0),
-        ).withSprite(sprite.Sprite{
-            .width = 48,
-            .height = 48,
-            .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
-        }));
-    }
+    // for (0..10) |_| {
+    //     _ = try g.spawn(Entity.initAt(
+    //         render.Pos.init(@floatFromInt(random.lessThan(900)), @floatFromInt(random.lessThan(490)), 0),
+    //     ).withSprite(sprite.Sprite{
+    //         .width = 48,
+    //         .height = 48,
+    //         .source = sprite.makeAnimation(gen.getAnim(.ronin_idle)),
+    //     }));
+    // }
 
     log.info("game initialized", .{});
     var last_time = win.getTime();
