@@ -6,8 +6,10 @@ flat in uint tex_id;
 
 uniform sampler2D tex_atlas;
 uniform sampler2D font_atlas;
+
 const uint TEX_UNIT = uint(0);
 const uint FONT_UNIT = uint(1);
+const uint NONE = uint(33);
 
 out vec4 frag_color;
 
@@ -18,9 +20,18 @@ void main() {
         tex_size = textureSize(tex_atlas, 0);
         frag_color = texture2D(tex_atlas, tex_pos / tex_size) * color;
         break;
+
         case FONT_UNIT:
         tex_size = textureSize(font_atlas, 0);
         frag_color = texture2D(font_atlas, tex_pos / tex_size) * color;
+        break;
+
+        case NONE:
+        frag_color = color;
+        break;
+
+        default:
+        frag_color = vec4(1, 0, 0, 1);
         break;
     }
 }

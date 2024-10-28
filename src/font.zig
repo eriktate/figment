@@ -30,7 +30,7 @@ pub const Font = struct {
     glyphs: [ENDING_CHAR_IDX - STARTING_CHAR_IDX]Glyph,
     quads: [ENDING_CHAR_IDX - STARTING_CHAR_IDX]render.Quad,
 
-    font_atlas: []u8,
+    font_atlas: []render.Color,
     atlas_w: usize,
     atlas_h: usize,
 
@@ -45,17 +45,18 @@ pub const Font = struct {
 
     /// Generate quads representing the given string at the given position. Single line only for now.
     pub fn drawText(self: Font, pos: render.Pos, text: []const u8, out: *std.ArrayList(render.Quad)) !void {
-        var offset: c_int = 0;
-        var prev_char: c_int = ' ';
+        // var offset: c_int = 0;
+        var offset: usize = 0;
+
         for (text) |char| {
-            // const glyph = self.glyphs[char];
+            // const glyph = self.glyphs[char - STARTING_CHAR_IDX];
             var quad = self.quads[char - STARTING_CHAR_IDX];
-            const advance = c.stbtt_GetGlyphKernAdvance(&self.info, prev_char, char);
-            offset += advance;
+            // const advance = c.stbtt_GetGlyphKernAdvance(&self.info, prev_char, char);
             quad.setPos(pos.add(.{ .x = @floatFromInt(offset) }));
             quad.setTexID(.font);
+            offset += @intFromFloat(quad.br.pos.x - quad.tl.pos.x + 1);
+            log.info("appending char '{c}' tl=({d}, {d}) br=({d}, {d})", .{ char, quad.tl.tex_pos.x, quad.tl.tex_pos.y, quad.br.tex_pos.x, quad.br.tex_pos.y });
             try out.append(quad);
-            prev_char = char;
         }
     }
 };
@@ -92,20 +93,31 @@ pub fn initAscii(alloc: std.mem.Allocator, font_path: []const u8, height: usize)
 
     log.info("start glyph generation", .{});
     var x: usize = 0;
-    for (STARTING_CHAR_IDX..ENDING_CHAR_IDX) |i| {
-        const glyph = try Glyph.init(&font_info, ascent, scale, @intCast(i));
-        font.glyphs[i - STARTING_CHAR_IDX] = glyph;
+    for (STARTING_CHAR_IDX..ENDING_CHAR_IDX) |char| {
+        const glyph = try Glyph.init(&font_info, ascent, scale, @intCast(char));
+        font.glyphs[char - STARTING_CHAR_IDX] = glyph;
 
         // std.log.info("'{c}' x: {d}, y: {d}, w: {d}, h: {d}", .{ char, glyph.x, glyph.y, glyph.w, glyph.h });
         const offset: usize = @intCast(x + glyph.lsb + (glyph.y * bitmap_w));
         c.stbtt_MakeGlyphBitmap(&font_info, &bitmap[offset], @intCast(glyph.w), @intCast(glyph.h), @intCast(bitmap_w), scale, scale, glyph.id);
+        var quad = render.Quad.init(
+            .{},
+            @floatFromInt(glyph.w),
+            @floatFromInt(glyph.h),
+        );
+        quad.setTex(
+            .{ .x = @intCast(x + glyph.lsb), .y = @intCast(glyph.y) },
+            .{ .x = @intCast(x + glyph.lsb + glyph.w), .y = @intCast(glyph.y + glyph.h) },
+        );
+
+        font.quads[char - STARTING_CHAR_IDX] = quad;
         x += glyph.width;
     }
     log.info("glyph generation done!", .{});
 
     var rgba_bitmap = alloc.alloc(render.Color, bitmap.len) catch return FontErr.BitmapAllocErr;
     for (bitmap, 0..) |pixel, i| {
-        rgba_bitmap[i] = render.Color.init(0, 0, 0, pixel);
+        rgba_bitmap[i] = render.Color.init(255, 255, 255, pixel);
     }
 
     log.info("writing font atlas", .{});
@@ -116,7 +128,7 @@ pub fn initAscii(alloc: std.mem.Allocator, font_path: []const u8, height: usize)
     log.info("done writing font atlas! bitmap size: {d}", .{@sizeOf(@TypeOf(bitmap)) * bitmap.len});
 
     font.info = font_info;
-    font.font_atlas = bitmap;
+    font.font_atlas = rgba_bitmap;
     font.atlas_w = bitmap_w;
     font.atlas_h = bitmap_h;
     return font;

@@ -1,17 +1,21 @@
 const std = @import("std");
 const c = @import("c");
+const log = @import("../log.zig");
 const ase = @import("../ase.zig");
+const Color = @import("primitives.zig").Color;
 
 const Shader = @import("../gl/shader.zig");
 
 pub const TextureID = enum(c_uint) {
     tex = 0,
     font = 1,
+    none = 33, // shouldn't exist
 
     fn toGL(self: TextureID) c_uint {
         return switch (self) {
             .tex => c.GL_TEXTURE0,
             .font => c.GL_TEXTURE1,
+            .none => c.GL_TEXTURE31 + 1, // doesn't exist
         };
     }
 };
@@ -20,14 +24,14 @@ const TextureErr = error{
     LoadFailed,
 };
 
-pub fn loadFromBytes(id: TextureID, bytes: []const u8, w: usize, h: usize) void {
+pub fn loadFromPixels(id: TextureID, pixels: []Color, w: usize, h: usize) void {
     var tex_handle: u32 = undefined;
     c.glGenTextures(1, &tex_handle);
     c.glActiveTexture(id.toGL());
     c.glBindTexture(c.GL_TEXTURE_2D, tex_handle);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);
-    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intCast(w), @intCast(h), 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(bytes));
+    c.glTexImage2D(c.GL_TEXTURE_2D, 0, c.GL_RGBA, @intCast(w), @intCast(h), 0, c.GL_RGBA, c.GL_UNSIGNED_BYTE, @ptrCast(pixels));
 }
 
 pub fn loadFromFile(alloc: std.mem.Allocator, id: TextureID, path: []const u8) !void {
@@ -48,10 +52,10 @@ pub fn loadFromFile(alloc: std.mem.Allocator, id: TextureID, path: []const u8) !
     }
     defer c.stbi_image_free(data);
 
-    std.log.info("loading texture {any} from: {s}", .{ id, path });
+    log.info("loading texture {any} ({d}x{d}@{d})from {s}", .{ id, width, height, channels, path });
     var tex_handle: u32 = undefined;
-    c.glGenTextures(1, &tex_handle);
     c.glActiveTexture(id.toGL());
+    c.glGenTextures(1, &tex_handle);
     c.glBindTexture(c.GL_TEXTURE_2D, tex_handle);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_NEAREST);
     c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_NEAREST);

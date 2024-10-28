@@ -58,7 +58,8 @@ pub fn run() !void {
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
     var debug = try DebugRenderer.init(alloc, "./shaders/debug_vs.glsl", "./shaders/debug_fs.glsl");
     _ = try texture.loadFromFile(alloc, .tex, "./assets/sprites/atlas.png");
-    texture.loadFromBytes(.font, debug_font.font_atlas, debug_font.atlas_w, debug_font.atlas_h);
+    _ = try texture.loadFromFile(alloc, .font, "./font_atlas.png");
+    // texture.loadFromPixels(.font, debug_font.font_atlas, debug_font.atlas_w, debug_font.atlas_h);
 
     // add background
     _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
@@ -160,7 +161,13 @@ pub fn run() !void {
             cam.lookAt(r.pos);
         }
 
-        try debug_font.drawText(.{ .x = 64, .y = 64 }, "Hello, world!", &g.quads);
+        // font shenanigans
+        try debug_font.drawText(.{ .x = 64, .y = 64 }, "Hello, world!", &g.fg_quads);
+        var font_atlas = render.Quad.init(.{ .x = 128, .y = 128 }, 760, 16);
+        font_atlas.setTex(render.TexPos.zero(), .{ .x = 760, .y = 16 });
+        font_atlas.setTexID(.font);
+        try g.fg_quads.append(font_atlas);
+
         try renderer.setProjection(cam.projection());
         try debug.setProjection(cam.projection());
 

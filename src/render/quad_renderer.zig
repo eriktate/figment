@@ -23,7 +23,7 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
     renderer.shader = shader;
     shader.use();
     try shader.setUniform(i32, "tex_atlas", 0);
-    // try shader.setUniform(i32, "font_atlas", 1);
+    try shader.setUniform(i32, "font_atlas", 1);
 
     renderer.vao = gl.VAO.init();
 

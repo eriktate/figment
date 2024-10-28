@@ -39,6 +39,6 @@ pub fn blendFunc(sfactor: BlendFactor, dfactor: BlendFactor) void {
 }
 
 pub fn flush() void {
-    c.glFlush();
-    // c.glFinish();
+    // c.glFlush();
+    c.glFinish();
 }

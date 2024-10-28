@@ -22,6 +22,7 @@ pub const Layer = enum {
 /// Contains and manages global game state.
 pub const Game = struct {
     quads: std.ArrayList(render.Quad),
+    fg_quads: std.ArrayList(render.Quad),
     entities: sparse.Set(Entity),
     layers: std.EnumArray(Layer, std.ArrayList(usize)),
 
@@ -37,9 +38,14 @@ pub const Game = struct {
         return self.entities.getMut(id);
     }
 
+    pub fn pushQuadFG(self: *Game, quad: render.Quad) !void {
+        return try self.fg_quads.append(quad);
+    }
+
     pub fn reset(self: *Game) void {
         // log.info("entities={d} quads={d}", .{ self.entities.items.len, self.quads.items.len });
         self.quads.items.len = 0;
+        self.fg_quads.items.len = 0;
     }
 
     pub fn genQuads(self: *Game) ![]render.Quad {
@@ -47,6 +53,10 @@ pub const Game = struct {
             if (ent.toQuad()) |quad| {
                 try self.quads.append(quad);
             }
+        }
+
+        for (self.fg_quads.items) |quad| {
+            try self.quads.append(quad);
         }
 
         return self.quads.items[0..];
@@ -94,6 +104,7 @@ pub const Game = struct {
 pub fn init(alloc: std.mem.Allocator) !*Game {
     game = Game{
         .quads = try std.ArrayList(render.Quad).initCapacity(alloc, 100_000),
+        .fg_quads = try std.ArrayList(render.Quad).initCapacity(alloc, 10_000),
         .entities = try sparse.Set(Entity).initCapacity(alloc, 100_000),
         .layers = std.EnumArray(Layer, std.ArrayList(usize)).initUndefined(),
     };
