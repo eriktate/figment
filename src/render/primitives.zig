@@ -1,5 +1,6 @@
 const std = @import("std");
 const dim = @import("../dim.zig");
+const TextureID = @import("texture.zig").TextureID;
 
 pub const Pos = dim.Vec3(f32);
 pub const TexPos = dim.Vec2(u16);
@@ -10,6 +11,7 @@ pub const Vertex = extern struct {
     tex_pos: TexPos = TexPos.zero(),
     // default color of white so that we can actually see things
     color: Color = .{ .x = 255, .y = 255, .z = 255, .w = 255 },
+    tex_id: TextureID = .tex,
 };
 
 pub const Quad = extern struct {
@@ -43,9 +45,22 @@ pub const Quad = extern struct {
         self.br.tex_pos = br;
     }
 
+    pub fn setTexID(self: *Quad, id: TextureID) void {
+        self.tl.tex_id = id;
+        self.tr.tex_id = id;
+        self.bl.tex_id = id;
+        self.br.tex_id = id;
+    }
+
     pub fn withTex(self: Quad, tl: TexPos, br: TexPos) Quad {
         var quad = self;
         quad.setTex(tl, br);
+        return quad;
+    }
+
+    pub fn withTexID(self: Quad, id: TextureID) Quad {
+        var quad = self;
+        quad.setTexID(id);
         return quad;
     }
 
@@ -63,10 +78,10 @@ pub const Quad = extern struct {
     }
 
     pub fn translate(self: *Quad, pos: Pos) void {
-        self.tl.pos.addMut(pos);
-        self.tr.pos.addMut(pos);
-        self.bl.pos.addMut(pos);
-        self.br.pos.addMut(pos);
+        _ = self.tl.pos.addMut(pos);
+        _ = self.tr.pos.addMut(pos);
+        _ = self.bl.pos.addMut(pos);
+        _ = self.br.pos.addMut(pos);
     }
 
     pub fn setPos(self: *Quad, pos: Pos) void {

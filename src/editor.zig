@@ -7,7 +7,7 @@ const dim = @import("dim.zig");
 const render = @import("render.zig");
 const QuadRenderer = render.QuadRenderer;
 const DebugRenderer = render.DebugRenderer;
-const Texture = render.Texture;
+const texture = render.texture;
 const Shader = @import("gl/shader.zig");
 const input_mgr = @import("input/manager.zig");
 const font = @import("font.zig");
@@ -28,8 +28,8 @@ const WINDOW_WIDTH = 1920;
 const WINDOW_HEIGHT = 1080;
 const WORLD_WIDTH = 960;
 const WORLD_HEIGHT = 540;
-const VIEW_WIDTH = WINDOW_WIDTH / 3;
-const VIEW_HEIGHT = WINDOW_HEIGHT / 3;
+const VIEW_WIDTH = WINDOW_WIDTH / 2;
+const VIEW_HEIGHT = WINDOW_HEIGHT / 2;
 
 pub fn run() !void {
     log.info("starting editor", .{});
@@ -45,7 +45,7 @@ pub fn run() !void {
     });
     defer audio.deinit();
 
-    _ = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
+    const debug_font = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
     var win = try mwl.createWindow("Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
     defer win.deinit();
@@ -57,7 +57,8 @@ pub fn run() !void {
 
     var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
     var debug = try DebugRenderer.init(alloc, "./shaders/debug_vs.glsl", "./shaders/debug_fs.glsl");
-    _ = try Texture.fromFile(alloc, "./assets/sprites/atlas.png");
+    _ = try texture.loadFromFile(alloc, .tex, "./assets/sprites/atlas.png");
+    texture.loadFromBytes(.font, debug_font.font_atlas, debug_font.atlas_w, debug_font.atlas_h);
 
     // add background
     _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
@@ -158,6 +159,8 @@ pub fn run() !void {
             // log.info("ronin pos=({d}, {d})", .{ r.pos.x, r.pos.y });
             cam.lookAt(r.pos);
         }
+
+        try debug_font.drawText(.{ .x = 64, .y = 64 }, "Hello, world!", &g.quads);
         try renderer.setProjection(cam.projection());
         try debug.setProjection(cam.projection());
 

@@ -22,13 +22,17 @@ fn stbttQuadToQuad(q: c.stbtt_aligned_quad) render.Quad {
 }
 
 pub const Font = struct {
+    info: c.stbtt_fontinfo,
     height: u16,
     ascent: u32,
     line_gap: u32,
 
     glyphs: [ENDING_CHAR_IDX - STARTING_CHAR_IDX]Glyph,
     quads: [ENDING_CHAR_IDX - STARTING_CHAR_IDX]render.Quad,
+
     font_atlas: []u8,
+    atlas_w: usize,
+    atlas_h: usize,
 
     pub fn getAtlasDimensions(self: Font) render.TexPos {
         var width = 0;
@@ -37,6 +41,22 @@ pub const Font = struct {
         }
 
         return render.TexPos.init(width, self.height);
+    }
+
+    /// Generate quads representing the given string at the given position. Single line only for now.
+    pub fn drawText(self: Font, pos: render.Pos, text: []const u8, out: *std.ArrayList(render.Quad)) !void {
+        var offset: c_int = 0;
+        var prev_char: c_int = ' ';
+        for (text) |char| {
+            // const glyph = self.glyphs[char];
+            var quad = self.quads[char - STARTING_CHAR_IDX];
+            const advance = c.stbtt_GetGlyphKernAdvance(&self.info, prev_char, char);
+            offset += advance;
+            quad.setPos(pos.add(.{ .x = @floatFromInt(offset) }));
+            quad.setTexID(.font);
+            try out.append(quad);
+            prev_char = char;
+        }
     }
 };
 
@@ -95,6 +115,10 @@ pub fn initAscii(alloc: std.mem.Allocator, font_path: []const u8, height: usize)
 
     log.info("done writing font atlas! bitmap size: {d}", .{@sizeOf(@TypeOf(bitmap)) * bitmap.len});
 
+    font.info = font_info;
+    font.font_atlas = bitmap;
+    font.atlas_w = bitmap_w;
+    font.atlas_h = bitmap_h;
     return font;
 }
 

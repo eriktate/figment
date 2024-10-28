@@ -34,7 +34,7 @@ fn compileShader(shader_type: ShaderType, src: []const u8) !u32 {
     if (success == 0) {
         var buffer: [512]u8 = undefined;
         c.glGetShaderInfoLog(shader, 512, null, &buffer);
-        std.log.err("failed to copmile {s} shader: {s}", .{ @tagName(shader_type), buffer });
+        std.log.err("failed to compile {s} shader: {s}", .{ @tagName(shader_type), buffer });
         return switch (shader_type) {
             .vertex => ShaderErr.VertexCompileErr,
             .fragment => ShaderErr.FragmentCompileErr,

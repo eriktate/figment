@@ -22,15 +22,19 @@ pub fn init(alloc: std.mem.Allocator, vs_path: []const u8, fs_path: []const u8) 
     var shader = try Shader.init(vs_path, fs_path);
     renderer.shader = shader;
     shader.use();
+    try shader.setUniform(i32, "tex_atlas", 0);
+    // try shader.setUniform(i32, "font_atlas", 1);
 
     renderer.vao = gl.VAO.init();
 
     const pos_offset = @offsetOf(Vertex, "pos");
     const tex_offset = @offsetOf(Vertex, "tex_pos");
+    const tex_id_offset = @offsetOf(Vertex, "tex_id");
     const color_offset = @offsetOf(Vertex, "color");
 
     renderer.vao.addAttr(f32, 3, @sizeOf(Vertex), pos_offset);
     renderer.vao.addAttr(u16, 2, @sizeOf(Vertex), tex_offset);
+    renderer.vao.addAttr(u32, 1, @sizeOf(Vertex), tex_id_offset);
     renderer.vao.addAttr(u8, 4, @sizeOf(Vertex), color_offset);
 
     // indices are always the same, so we can precompute their value
