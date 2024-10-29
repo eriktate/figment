@@ -49,13 +49,17 @@ pub const Font = struct {
         var offset: usize = 0;
 
         for (text) |char| {
-            // const glyph = self.glyphs[char - STARTING_CHAR_IDX];
+            if (char == ' ') {
+                offset += 4;
+            }
+
+            const glyph = self.glyphs[char - STARTING_CHAR_IDX];
             var quad = self.quads[char - STARTING_CHAR_IDX];
             // const advance = c.stbtt_GetGlyphKernAdvance(&self.info, prev_char, char);
-            quad.setPos(pos.add(.{ .x = @floatFromInt(offset) }));
+            quad.setPos(pos.add(.{ .x = @floatFromInt(offset), .y = @floatFromInt(glyph.y) }));
             quad.setTexID(.font);
             offset += @intFromFloat(quad.br.pos.x - quad.tl.pos.x + 1);
-            log.info("appending char '{c}' tl=({d}, {d}) br=({d}, {d})", .{ char, quad.tl.tex_pos.x, quad.tl.tex_pos.y, quad.br.tex_pos.x, quad.br.tex_pos.y });
+            // log.info("appending char '{c}' tl=({d}, {d}) br=({d}, {d})", .{ char, quad.tl.tex_pos.x, quad.tl.tex_pos.y, quad.br.tex_pos.x, quad.br.tex_pos.y });
             try out.append(quad);
         }
     }

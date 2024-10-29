@@ -1,12 +1,12 @@
 const std = @import("std");
 
-const Level = enum {
+pub const Level = enum {
     info,
     err,
     debug,
 };
 
-const Metric = enum {
+pub const Metric = enum {
     update,
     quads,
     render,
@@ -35,6 +35,33 @@ pub const Stat = struct {
         self.count = 0;
     }
 
+    /// computes the metric rate per millisecond
+    pub fn getRateMS(self: Stat) f64 {
+        if (self.total_time == 0) {
+            return 0;
+        }
+
+        const total_time: f64 = @floatFromInt(self.total_time);
+        const count: f64 = @floatFromInt(self.count);
+        const rate = (count / (total_time / 1000));
+        return rate;
+    }
+
+    pub fn getRate(self: Stat) i64 {
+        return @intFromFloat(getRateMS(self) * 1000);
+    }
+
+    pub fn getAverageTimeMS(self: Stat) f64 {
+        if (self.count == 0) {
+            return 0;
+        }
+
+        const total_time: f64 = @floatFromInt(self.total_time);
+        const count: f64 = @floatFromInt(self.count);
+        const avg = (total_time / count) / 1000;
+        return avg;
+    }
+
     pub fn zero() Stat {
         return Stat{
             .metric = .update,
@@ -49,6 +76,7 @@ pub const Logger = struct {
     start_time: i64, // microsend timestamp of logger creation
     last_time: i64, // microsecond timestamp of last log
 
+    prev_stats: std.EnumArray(Metric, Stat),
     stats: std.EnumArray(Metric, Stat),
 
     fn log(self: *Logger, comptime level: Level, comptime format: []const u8, args: anytype) void {
@@ -103,6 +131,7 @@ pub const Logger = struct {
 
     pub fn reset(self: *Logger) void {
         for (&self.stats.values) |*stat| {
+            self.prev_stats.set(stat.metric, stat.*);
             stat.clear();
         }
     }
@@ -112,6 +141,14 @@ pub const Logger = struct {
             const val_f: f64 = @floatFromInt(@divTrunc(stat.total_time, stat.count));
             self.info("{any} avg time {d}ms", .{ stat.metric, val_f / 1000 });
         }
+    }
+
+    pub fn getStat(self: *Logger, metric: Metric) Stat {
+        return self.stats.get(metric);
+    }
+
+    pub fn getLastStat(self: *Logger, metric: Metric) Stat {
+        return self.prev_stats.get(metric);
     }
 };
 
@@ -132,6 +169,7 @@ var global_log: Logger = Logger{
     .last_time = 0,
     .start_time = 0,
     .stats = getEmptyStats(),
+    .prev_stats = getEmptyStats(),
 };
 
 pub fn info(comptime format: []const u8, args: anytype) void {
@@ -160,4 +198,12 @@ pub fn reset() void {
 
 pub fn stats() void {
     global_log.showStats();
+}
+
+pub fn getStat(metric: Metric) Stat {
+    return global_log.getStat(metric);
+}
+
+pub fn getLastStat(metric: Metric) Stat {
+    return global_log.getLastStat(metric);
 }

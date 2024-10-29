@@ -23,6 +23,7 @@ const Box = @import("box.zig");
 const gl = @import("gl.zig");
 const random = @import("random.zig");
 const Camera = @import("camera.zig");
+const Timer = @import("timer.zig");
 
 const WINDOW_WIDTH = 1920;
 const WINDOW_HEIGHT = 1080;
@@ -117,13 +118,11 @@ pub fn run() !void {
     //     }));
     // }
 
-    log.info("game initialized", .{});
     var last_time = win.getTime();
     var current_time = win.getTime();
+    var stat_reset_timer = Timer.initMS(250);
+    stat_reset_timer.reset();
     var dt: f32 = 0;
-    var total_elapsed_time: f32 = 0;
-    var frames: usize = 0;
-    log.info("begin game loop", .{});
     var cam = Camera.init(WORLD_WIDTH, WORLD_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
     while (!input_mgr.quit) {
         log.start(.loop);
@@ -162,12 +161,9 @@ pub fn run() !void {
         }
 
         // font shenanigans
-        try debug_font.drawText(.{ .x = 64, .y = 64 }, "Hello, world!", &g.fg_quads);
-        var font_atlas = render.Quad.init(.{ .x = 128, .y = 128 }, 760, 16);
-        font_atlas.setTex(render.TexPos.zero(), .{ .x = 760, .y = 16 });
-        font_atlas.setTexID(.font);
-        try g.fg_quads.append(font_atlas);
-
+        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
+        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
+        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
         try renderer.setProjection(cam.projection());
         try debug.setProjection(cam.projection());
 
@@ -187,18 +183,24 @@ pub fn run() !void {
         log.finish(.swap);
         log.finish(.loop);
 
-        frames += 1;
-        total_elapsed_time += dt;
         try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
-        if (total_elapsed_time >= 1) {
-            var buf: [256]u8 = undefined;
-            const title = try std.fmt.bufPrint(buf[0..], "Mythic@{d}fps - *float*", .{frames});
-            try win.setTitle(title);
-            frames = 0;
-            total_elapsed_time = 0;
-            // log.stats();
-            log.info("camera target=({d}, {d})", .{ cam.pos.x, cam.pos.y });
+
+        if (stat_reset_timer.fired()) {
+            log.info("loop: {any}", .{log.getStat(.loop)});
+            stat_reset_timer.reset();
             log.reset();
         }
     }
+}
+
+fn drawText(
+    fnt: font.Font,
+    quads: *std.ArrayList(render.Quad),
+    pos: render.Pos,
+    comptime fmt: []const u8,
+    args: anytype,
+) !void {
+    var buf: [128]u8 = undefined;
+    const text = try std.fmt.bufPrint(&buf, fmt, args);
+    try fnt.drawText(pos, text, quads);
 }
