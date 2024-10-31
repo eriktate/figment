@@ -161,9 +161,10 @@ pub fn run() !void {
         }
 
         // font shenanigans
-        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
-        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
-        try drawText(debug_font, &g.fg_quads, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
+        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
+        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
+        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
+
         try renderer.setProjection(cam.projection());
         try debug.setProjection(cam.projection());
 
@@ -172,11 +173,12 @@ pub fn run() !void {
         try renderer.render(try g.genQuads());
         try debug.render();
         log.finish(.render);
+
+        log.start(.swap);
         // NOTE (soggy): for some reason calling glFlush before swapping results in a framerate boost of ~300%..?
         // Swapping ends up calling glFinish which blocks until all submitted GL commands have completed and all of
         // the pixels have been drawn, whereas glFlush does not block. So I wonder if this might eventually result
         // in flickering/tearing? Replacing glFlush with glFinish results in the same framerate we were seeing before
-        log.start(.swap);
         gl.flush();
         g.reset();
         win.swap();
@@ -186,21 +188,8 @@ pub fn run() !void {
         try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
 
         if (stat_reset_timer.fired()) {
-            log.info("loop: {any}", .{log.getStat(.loop)});
             stat_reset_timer.reset();
             log.reset();
         }
     }
-}
-
-fn drawText(
-    fnt: font.Font,
-    quads: *std.ArrayList(render.Quad),
-    pos: render.Pos,
-    comptime fmt: []const u8,
-    args: anytype,
-) !void {
-    var buf: [128]u8 = undefined;
-    const text = try std.fmt.bufPrint(&buf, fmt, args);
-    try fnt.drawText(pos, text, quads);
 }

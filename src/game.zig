@@ -1,8 +1,10 @@
 const std = @import("std");
 const log = @import("log.zig");
 const render = @import("render.zig");
-const Entity = @import("entity.zig");
 const sparse = @import("sparse.zig");
+
+const Entity = @import("entity.zig");
+const Font = @import("font.zig").Font;
 
 var game: Game = undefined;
 var game_initialized: bool = false;
@@ -98,6 +100,17 @@ pub const Game = struct {
                 try self.entities.swap(i - j, i - j - 1);
             }
         }
+    }
+
+    pub fn drawText(self: *Game, font: Font, pos: render.Pos, text: []const u8) !void {
+        try font.drawText(pos, text, &self.fg_quads);
+    }
+
+    pub fn drawTextFmt(self: *Game, font: Font, pos: render.Pos, comptime fmt: []const u8, args: anytype) !void {
+        var buf: [512]u8 = undefined;
+        const text = try std.fmt.bufPrint(&buf, fmt, args);
+
+        return try self.drawText(font, pos, text);
     }
 };
 
