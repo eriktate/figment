@@ -8,10 +8,3 @@ pub usingnamespace switch (config.opts.platform) {
     .win32 => @import("win32.zig"),
     else => @compileError("unsupported platform"),
 };
-
-pub const Window = struct {
-    pub fn getTime(_: Window) f64 {
-        const nano_f64: f64 = @floatFromInt(std.time.nanoTimestamp());
-        return nano_f64 / 1000 / 1000 / 1000;
-    }
-};

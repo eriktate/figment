@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub fn RingBuffer(T: type) type {
     return struct {
+        alloc: ?std.mem.Allocator = null,
         buf: []T,
         idx: usize,
         end: usize,
@@ -16,6 +17,22 @@ pub fn RingBuffer(T: type) type {
                 .end = 0,
                 .full = false,
             };
+        }
+
+        pub fn initAlloc(alloc: std.mem.Allocator, size: usize) !Self {
+            return Self{
+                .alloc = alloc,
+                .buf = try alloc.alloc(T, size),
+                .idx = 0,
+                .end = 0,
+                .full = false,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            if (self.alloc) |alloc| {
+                alloc.free(self.buf);
+            }
         }
 
         pub fn push(self: *Self, item: T) void {

@@ -48,8 +48,10 @@ pub fn run() !void {
 
     const debug_font = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
 
-    var win = try mwl.createWindow("Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
-    defer win.deinit();
+    log.info("initializing window", .{});
+    var win = try mwl.createWindow(alloc, "Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
+    defer mwl.destroyWindow(win);
+    try win.setTitle("Mythic - *float*");
 
     // init inputs after window because certain configs may require a valid window/context
     try input_mgr.init(alloc);
@@ -131,7 +133,7 @@ pub fn run() !void {
         current_time = win.getTime();
         dt = @floatCast(current_time - last_time);
 
-        if (try win.poll(input_mgr.controllers.items)) |event| {
+        while (try win.poll(input_mgr.controllers.items)) |event| {
             try input_mgr.handleEvent(event);
         }
 
@@ -181,7 +183,7 @@ pub fn run() !void {
         // in flickering/tearing? Replacing glFlush with glFinish results in the same framerate we were seeing before
         gl.flush();
         g.reset();
-        win.swap();
+        try win.swap();
         log.finish(.swap);
         log.finish(.loop);
 

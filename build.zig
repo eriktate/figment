@@ -13,7 +13,7 @@ const vendor_windows_include = "vendor/windows/include";
 const vendor_windows_src = "vendor/windows/src";
 
 pub const Options = struct {
-    backend: Backend = .glfw,
+    backend: Backend = .mwl,
     mode: Mode = .editor,
     platform: mythic.Platform = mythic.getPlatformFromNative(native_os),
 };
@@ -50,6 +50,7 @@ fn getSrcFromPlatform(platform: mythic.Platform) []const u8 {
         else => "",
     };
 }
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.

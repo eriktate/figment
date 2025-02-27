@@ -53,6 +53,9 @@ pub const Key = enum {
     backspace,
     semicolon,
     escape,
+    comma,
+    dot,
+    tick,
     unknown,
 };
 

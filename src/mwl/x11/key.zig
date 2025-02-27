@@ -1,4 +1,5 @@
 const std = @import("std");
+const log = @import("../../log.zig");
 const c = @import("c");
 const Key = @import("../../input/events.zig").Key;
 
@@ -54,8 +55,7 @@ pub fn initializeKeycodeMap(display: ?*c.Display) void {
 
     // special
     code_to_key[c.XKeysymToKeycode(display, c.XK_space)] = Key.space;
-    code_to_key[c.XKeysymToKeycode(display, c.XK_Escape)] = Key.esc;
-    code_to_key[c.XKeysymToKeycode(display, c.XK_Escape)] = Key.esc;
+    code_to_key[c.XKeysymToKeycode(display, c.XK_Escape)] = Key.escape;
     code_to_key[c.XKeysymToKeycode(display, c.XK_comma)] = Key.comma;
     code_to_key[c.XKeysymToKeycode(display, c.XK_period)] = Key.dot;
     code_to_key[c.XKeysymToKeycode(display, c.XK_semicolon)] = Key.semicolon;

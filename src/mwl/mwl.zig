@@ -1,4 +1,5 @@
 const std = @import("std");
+const log = @import("../log.zig");
 const c = @import("c");
 const gl = @import("../gl.zig");
 const events = @import("../input/events.zig");
@@ -41,21 +42,27 @@ pub const Mode = enum {
 };
 
 pub const Window = struct {
+    alloc: std.mem.Allocator,
+
     _backend: backend.Window,
 
-    title: []const u8,
-    title_buf: [MAX_TITLE_LEN]u8,
+    title: []u8,
     w: u16,
     h: u16,
     opts: WinOpts,
 
-    pub fn setTitle(self: *Window, title: []const u8) !void {
+    fn copyTitle(self: *Window, title: []const u8) !void {
         assert(title.len < MAX_TITLE_LEN);
+        self.title.len = MAX_TITLE_LEN;
 
-        @memcpy(self.title_buf[0..title.len], title);
-        self.title_buf[title.len] = 0;
+        @memcpy(self.title[0..title.len], title);
+        self.title[title.len] = 0;
         self.title.len = title.len;
-        try self._backend.setTitle(&self.title_buf);
+    }
+
+    pub fn setTitle(self: *Window, title: []const u8) !void {
+        try copyTitle(self, title);
+        try self._backend.setTitle(title);
     }
 
     pub fn setMode(self: *Window, mode: Mode) !void {
@@ -68,8 +75,10 @@ pub const Window = struct {
         self._backend.setVsync(vsync);
     }
 
-    pub fn deinit(self: Window) void {
+    pub fn deinit(self: *Window) void {
         self._backend.deinit();
+        self.alloc.free(self.title);
+        self.alloc.destroy(self);
     }
 
     pub fn getTime(self: Window) f64 {
@@ -85,25 +94,28 @@ pub const Window = struct {
         c.glClear(c.GL_COLOR_BUFFER_BIT);
     }
 
-    pub fn swap(self: Window) void {
-        self._backend.swap();
+    pub fn swap(self: *Window) !void {
+        try self._backend.swap();
     }
 };
 
-pub fn createWindow(title: []const u8, w: u16, h: u16, opts: WinOpts) !Window {
-    var win = Window{
+pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16, opts: WinOpts) !*Window {
+    log.info("createWindow", .{});
+    var win = try alloc.create(Window);
+    win.* = Window{
         ._backend = undefined,
+        .alloc = alloc,
         .w = w,
         .h = h,
         .opts = opts,
-        .title = undefined,
-        .title_buf = std.mem.zeroes([MAX_TITLE_LEN]u8),
+        .title = try alloc.alloc(u8, MAX_TITLE_LEN),
     };
 
-    win.title = &win.title_buf;
-    try win.setTitle(title);
-    win._backend = try backend.createWindow(&win.title_buf, w, h, opts);
+    try win.copyTitle(title);
+    log.info("backend createWindow", .{});
+    win._backend = try backend.createWindow(alloc, win.title, w, h, opts);
 
+    try win._backend.makeContextCurrent();
     if (c.gl3wInit() == 1) {
         return WinErr.GLInit;
     }
@@ -115,4 +127,8 @@ pub fn createWindow(title: []const u8, w: u16, h: u16, opts: WinOpts) !Window {
     gl.blendFunc(.src_alpha, .one_minus_src_alpha);
 
     return win;
+}
+
+pub fn destroyWindow(win: *Window) void {
+    win.deinit();
 }

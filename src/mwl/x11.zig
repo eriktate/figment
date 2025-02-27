@@ -1,10 +1,12 @@
 const std = @import("std");
+const log = @import("../log.zig");
 const c = @import("c");
 const mwl = @import("mwl.zig");
 const input = @import("input.zig");
-const getKey = @import("x11/key.zig").getKey;
+const key = @import("x11/key.zig");
 const events = @import("../input/events.zig");
 const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
+const Controller = @import("../input/controller.zig").Controller;
 
 const XErr = error{
     // Target errors
@@ -18,6 +20,7 @@ const XErr = error{
     UnmapWin,
     DestroyWin,
     SetTitle,
+    InputMask,
 
     // GL errors
     GetDisplayEGL,
@@ -35,6 +38,7 @@ const EGL = struct {
     ctx: c.EGLContext,
 
     pub fn init(win: Window) !EGL {
+        log.info("init EGL", .{});
         const display = c.eglGetDisplay(win._target.display);
         if (display == c.EGL_NO_DISPLAY) {
             return XErr.GetDisplayEGL;
@@ -120,69 +124,63 @@ pub const Window = struct {
     _target: Target,
     _handle: c.Window,
     _egl: EGL,
-    _raw_buffer: [128]events.Event,
     _event_buffer: RingBuffer(events.Event),
 
-    // common API
-    title: [256]u8 = std.mem.zeroes([256]u8),
-    x: u16,
-    y: u16,
-    w: u16,
-    h: u16,
     opts: mwl.WinOpts,
 
-    pub fn clear(self: Window) XErr!void {
-        if (c.XClearWindow(self._target.display, self._handle) == 0) {
-            return XErr.ClearWin;
-        }
-    }
-
-    pub fn flush(self: Window) XErr!void {
+    pub fn swap(self: *Window) XErr!void {
         _ = c.eglSwapBuffers(self._egl.display, self._egl.surface);
-        return self._target.flush();
+        try self.pollEvents();
     }
 
-    pub fn deinit(self: Window) void {
+    pub fn deinit(self: *Window) void {
         self._egl.deinit();
 
-        // ignore unmap errors for now
-        if (c.XUnmapWindow(self._target.display, self._handle) == 0) {
-            // TODO (soggy): consider accepting a log function for these
-            std.log.warn("failed to unmap window", .{});
-        }
-
-        if (c.XDestroyWindow(self._target.display, self._handle) == 0) {
-            std.log.warn("failed to destroy window", .{});
-        }
-
+        // closing the display will automatically clean up created windows and other resources
         self._target.deinit();
+        self._event_buffer.deinit();
     }
 
     pub fn setTitle(self: *Window, title: []const u8) !void {
-        std.mem.copyForwards(u8, self.title[0..], title);
-        self.title[title.len] = '0';
-
-        if (c.XStoreName(self._target.display, self._handle, @ptrCast(&self.title)) == 0) {
+        var name: c.XTextProperty = undefined;
+        if (c.XStringListToTextProperty(@ptrCast(@constCast(&title)), 1, &name) == 0) {
             return XErr.SetTitle;
         }
+
+        c.XSetWMName(self._target.display, self._handle, &name);
+        // if (c.XStoreName(self._target.display, self._handle, @ptrCast(&title)) == 0) {
+        //     return XErr.SetTitle;
+        // }
+    }
+
+    pub fn getTime(_: Window) f64 {
+        const nano_f64: f64 = @floatFromInt(std.time.nanoTimestamp());
+        return nano_f64 / 1000 / 1000 / 1000;
+    }
+
+    pub fn poll(self: *Window, _: []Controller) !?events.Event {
+        return self._event_buffer.next();
     }
 
     pub fn makeContextCurrent(self: Window) !void {
         try self._egl.makeCurrent();
     }
 
-    pub fn pollEvents(self: *Window) !void {
+    fn pollEvents(self: *Window) !void {
         var ev: c.XEvent = undefined;
 
-        while (c.XEventsQueued(self._target.display) > 0) {
-            if (c.XNextEvent(self._target.display, &ev) == 0) {
-                std.log.warn("failed to get next event", .{});
-            }
+        while (c.XPending(self._target.display) > 0) {
+            _ = c.XNextEvent(self._target.display, &ev);
             switch (ev.type) {
                 c.KeyPress => self._event_buffer.push(.{ .key = .{
-                    .key = getKey(ev.xkey.keycode),
+                    .key = key.getKey(ev.xkey.keycode),
                     .pressed = true,
                 } }),
+                c.KeyRelease => self._event_buffer.push(.{ .key = .{
+                    .key = key.getKey(ev.xkey.keycode),
+                    .pressed = false,
+                } }),
+                else => {},
             }
         }
     }
@@ -226,7 +224,9 @@ const Target = struct {
 };
 
 inline fn initDisplay() XErr!*c.Display {
+    log.info("open display", .{});
     const display = c.XOpenDisplay(null) orelse return XErr.OpenDisplay;
+    log.info("opened display", .{});
 
     if (c.XNoOp(display) == 0) {
         return XErr.NoopCmd;
@@ -236,7 +236,8 @@ inline fn initDisplay() XErr!*c.Display {
 }
 
 /// Create a new x11 window
-pub fn createWindow(title: []const u8, w: u16, h: u16, opts: mwl.WinOpts) !Window {
+pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16, opts: mwl.WinOpts) !Window {
+    log.info("create window", .{});
     const target = try Target.init();
 
     const white = c.XWhitePixel(target.display, target.screen);
@@ -258,16 +259,18 @@ pub fn createWindow(title: []const u8, w: u16, h: u16, opts: mwl.WinOpts) !Windo
         ._handle = handle,
         ._target = target,
         ._egl = undefined,
-        .x = 0,
-        .y = 0,
-        .w = w,
-        .h = h,
+        ._event_buffer = try RingBuffer(events.Event).initAlloc(alloc, 128),
         .opts = opts,
     };
 
     try win.setTitle(title);
     win._egl = try EGL.init(win);
 
+    if (c.XSelectInput(target.display, handle, c.KeyPressMask | c.KeyReleaseMask | c.PointerMotionMask | c.ButtonPressMask | c.ButtonReleaseMask | c.ButtonMotionMask) == 0) {
+        return XErr.InputMask;
+    }
+
+    key.initializeKeycodeMap(target.display);
     if (c.XMapRaised(target.display, win._handle) == 0) {
         return XErr.MapWin;
     }
