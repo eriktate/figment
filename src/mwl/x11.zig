@@ -300,8 +300,12 @@ pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16,
     try win.makeContextCurrent();
 
     if (!win.opts.vsync) {
-        if (c.eglSwapInterval(win._target.display, @intCast(0)) != c.EGL_TRUE) {
-            log.info("could not disable vsync", .{});
+        // egl doesn't want to disable vsync for some reason, might need to investigate using glx instead
+        switch (c.eglSwapInterval(win._target.display, @intCast(0))) {
+            c.EGL_FALSE => log.err("something went wrong disabling vsync", .{}),
+            c.EGL_BAD_CONTEXT => log.err("bad context for disabling vsync", .{}),
+            c.EGL_BAD_SURFACE => log.err("bad surface for disabling vsync", .{}),
+            else => {},
         }
     }
 
