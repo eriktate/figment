@@ -1,6 +1,9 @@
 const std = @import("std");
+const log = @import("../../log.zig");
 const fs = std.fs;
 const RingBuffer = @import("../../ringbuffer.zig").RingBuffer;
+const events = @import("../../input/events.zig");
+const epoll = @import("../../platform/linux/epoll.zig");
 
 const MAX_JOYSTICKS_ON_LINUX = 32;
 const MAX_INPUT_BUFFER = 64;
@@ -11,6 +14,36 @@ pub const EventType = enum(u8) {
     init = 0x80,
     init_button = 0x81,
     init_axis = 0x82,
+};
+
+const ButtonMap = [15]events.Button;
+const AxisMap = [6]events.Axis;
+
+const defaultButtonMap: ButtonMap = .{
+    .a,
+    .b,
+    .x,
+    .y,
+    .l1,
+    .r1,
+    .select,
+    .start,
+    .up,
+    .l3,
+    .r3,
+    .down,
+    .left,
+    .right,
+    .menu,
+};
+
+const defaultAxisMap: AxisMap = .{
+    .l_stick_x,
+    .l_stick_y,
+    .l_trigger,
+    .r_stick_x,
+    .r_stick_y,
+    .r_trigger,
 };
 
 /// Can be cast directly from events read from /dev/input/js*.
@@ -37,6 +70,26 @@ pub const JoystickEvent = struct {
     number: u8,
     value: i16,
     time: u32,
+
+    pub fn toEvent(self: JoystickEvent) ?events.Event {
+        return switch (self.type) {
+            .button => events.Event{
+                .button = .{
+                    .id = @intCast(self.id),
+                    .button = defaultButtonMap[self.number],
+                    .pressed = self.value != 0,
+                },
+            },
+            .axis => events.Event{
+                .axis = .{
+                    .id = @intCast(self.id),
+                    .axis = defaultAxisMap[self.number],
+                    .strength = @as(f32, @floatFromInt(self.value)) / @as(f32, std.math.maxInt(i16)),
+                },
+            },
+            else => null,
+        };
+    }
 };
 
 pub const Joystick = struct {
@@ -44,13 +97,13 @@ pub const Joystick = struct {
     device: u8, // joystick device id (e.g. js0 would be 0, js1 would be 1)
     name: [128]u8 = std.mem.zeroes([128]u8),
     name_len: usize = 0,
-    fd: fs.File = undefined,
+    file: *epoll.File = undefined,
 
     pub inline fn getName(self: Joystick) []const u8 {
         return self.name[0..self.name_len];
     }
 
-    pub fn init(device: u8) !Joystick {
+    pub fn init(device: u8, file_pool: *epoll.FilePool) !Joystick {
         var joystick = Joystick{
             .device = device,
         };
@@ -58,37 +111,28 @@ pub const Joystick = struct {
         var buf = std.mem.zeroes([128]u8);
 
         const name_path = try std.fmt.bufPrint(&buf, "/sys/class/input/js{d}/device/name", .{device});
-        const name_file = try fs.openFileAbsolute(name_path, .{ .mode = .read_only });
+        const name_file = try fs.openFileAbsolute(name_path, .{ .mode = .read_only, .lock_nonblocking = true });
         joystick.name_len = try name_file.readAll(&joystick.name);
         name_file.close();
 
-        const fd_path = try std.fmt.bufPrint(&buf, "/dev/input/js{d}", .{device});
-        joystick.fd = try fs.openFileAbsolute(fd_path, .{ .mode = .read_only, .lock_nonblocking = true });
+        const file_path = try std.fmt.bufPrint(&buf, "/dev/input/js{d}", .{device});
+        joystick.file = try file_pool.open(file_path, .{ .mode = .read_only, .lock_nonblocking = true });
 
         return joystick;
-    }
-
-    pub fn deinit(self: Joystick) void {
-        self.fd.close();
     }
 };
 
 pub const JoystickManager = struct {
     alloc: std.mem.Allocator,
     joysticks: std.ArrayList(Joystick),
-    raw_buffer: [MAX_INPUT_BUFFER]JoystickEvent,
-    event_buffer: RingBuffer(JoystickEvent),
+    file_pool: epoll.FilePool,
 
     pub fn init(alloc: std.mem.Allocator) !JoystickManager {
-        var mgr = JoystickManager{
+        return JoystickManager{
             .alloc = alloc,
             .joysticks = try std.ArrayList(Joystick).initCapacity(alloc, MAX_JOYSTICKS_ON_LINUX),
-            .raw_buffer = undefined,
-            .event_buffer = undefined,
+            .file_pool = try epoll.FilePool.init(alloc),
         };
-        mgr.event_buffer = RingBuffer(JoystickEvent).init(&mgr.raw_buffer);
-
-        return mgr;
     }
 
     pub fn detectJoysticks(self: *JoystickManager) !usize {
@@ -112,7 +156,7 @@ pub const JoystickManager = struct {
                     continue;
                 }
 
-                var joystick = try Joystick.init(device);
+                var joystick = try Joystick.init(device, &self.file_pool);
                 joystick.id = self.joysticks.items.len;
                 try self.joysticks.append(joystick);
             }
@@ -121,23 +165,22 @@ pub const JoystickManager = struct {
         return self.joysticks.items.len;
     }
 
-    pub fn poll(self: *JoystickManager) !*RingBuffer(JoystickEvent) {
+    pub fn poll(self: *JoystickManager, event_buffer: *RingBuffer(events.Event)) !void {
         var buf = std.mem.zeroes([@sizeOf(RawEvent) * MAX_INPUT_BUFFER]u8);
 
+        try self.file_pool.poll();
         for (self.joysticks.items) |js| {
-            const len = try js.fd.read(&buf);
+            const len = try js.file.read(&buf);
             var offset: usize = 0;
 
             while (len - offset > 0) {
                 var ev: *RawEvent = @alignCast(@ptrCast(&buf[offset]));
-                std.log.info("raw event type={x}", .{ev.type});
-                std.log.info("joystick event={any}", .{ev.toJoystickEvent(js.id)});
                 offset += @sizeOf(RawEvent);
-                self.event_buffer.push(ev.toJoystickEvent(js.id));
+                if (ev.toJoystickEvent(js.id).toEvent()) |event| {
+                    event_buffer.push(event);
+                }
             }
         }
-
-        return &self.event_buffer;
     }
 
     pub fn getJoystick(self: JoystickManager, id: usize) ?Joystick {

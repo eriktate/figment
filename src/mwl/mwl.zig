@@ -33,6 +33,7 @@ pub const WinOpts = struct {
     mode: Mode = .windowed,
     gl_major: i32 = 3,
     gl_minor: i32 = 3,
+    enable_joysticks: bool = true,
 };
 
 pub const Mode = enum {
@@ -112,10 +113,8 @@ pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16,
     };
 
     try win.copyTitle(title);
-    log.info("backend createWindow", .{});
     win._backend = try backend.createWindow(alloc, win.title, w, h, opts);
 
-    try win._backend.makeContextCurrent();
     if (c.gl3wInit() == 1) {
         return WinErr.GLInit;
     }

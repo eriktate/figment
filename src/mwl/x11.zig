@@ -4,6 +4,7 @@ const c = @import("c");
 const mwl = @import("mwl.zig");
 const input = @import("input.zig");
 const key = @import("x11/key.zig");
+const joystick = @import("x11/joystick.zig");
 const events = @import("../input/events.zig");
 const RingBuffer = @import("../ringbuffer.zig").RingBuffer;
 const Controller = @import("../input/controller.zig").Controller;
@@ -21,6 +22,7 @@ const XErr = error{
     DestroyWin,
     SetTitle,
     InputMask,
+    AutoRepeat,
 
     // GL errors
     GetDisplayEGL,
@@ -49,11 +51,12 @@ const EGL = struct {
         }
 
         const attrs = [_]c.EGLint{
-            c.EGL_SURFACE_TYPE,    c.EGL_WINDOW_BIT,
-            c.EGL_RED_SIZE,        8,
-            c.EGL_GREEN_SIZE,      8,
-            c.EGL_BLUE_SIZE,       8,
-            c.EGL_RENDERABLE_TYPE, c.EGL_OPENGL_BIT,
+            c.EGL_SURFACE_TYPE,      c.EGL_WINDOW_BIT,
+            c.EGL_RED_SIZE,          8,
+            c.EGL_GREEN_SIZE,        8,
+            c.EGL_BLUE_SIZE,         8,
+            c.EGL_RENDERABLE_TYPE,   c.EGL_OPENGL_BIT,
+            c.EGL_MIN_SWAP_INTERVAL, 0,
             c.EGL_NONE,
         };
 
@@ -125,10 +128,11 @@ pub const Window = struct {
     _handle: c.Window,
     _egl: EGL,
     _event_buffer: RingBuffer(events.Event),
+    _joystick_mgr: ?joystick.JoystickManager = null,
 
     opts: mwl.WinOpts,
 
-    pub fn swap(self: *Window) XErr!void {
+    pub fn swap(self: *Window) !void {
         _ = c.eglSwapBuffers(self._egl.display, self._egl.surface);
         try self.pollEvents();
     }
@@ -168,6 +172,7 @@ pub const Window = struct {
 
     fn pollEvents(self: *Window) !void {
         var ev: c.XEvent = undefined;
+        var peek: c.XEvent = undefined;
 
         while (c.XPending(self._target.display) > 0) {
             _ = c.XNextEvent(self._target.display, &ev);
@@ -176,12 +181,29 @@ pub const Window = struct {
                     .key = key.getKey(ev.xkey.keycode),
                     .pressed = true,
                 } }),
-                c.KeyRelease => self._event_buffer.push(.{ .key = .{
-                    .key = key.getKey(ev.xkey.keycode),
-                    .pressed = false,
-                } }),
+                c.KeyRelease => {
+                    // X11 automatically sends key release events when keyrepeat is turned on, but turning it off
+                    // permanently affects the entire system. Checking if there's an immediate press for the same
+                    // keycode after a received release is dumb hack to avoid keyrepeat behavior without impacting
+                    // the entire Xserver
+                    if (c.XPending(self._target.display) > 0) {
+                        _ = c.XPeekEvent(self._target.display, &peek);
+                        if (peek.type == c.KeyPress and peek.xkey.keycode == ev.xkey.keycode) {
+                            continue;
+                        }
+                    }
+
+                    self._event_buffer.push(.{ .key = .{
+                        .key = key.getKey(ev.xkey.keycode),
+                        .pressed = false,
+                    } });
+                },
                 else => {},
             }
+        }
+
+        if (self._joystick_mgr) |*mgr| {
+            try mgr.poll(&self._event_buffer);
         }
     }
 };
@@ -275,7 +297,19 @@ pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16,
         return XErr.MapWin;
     }
 
-    try target.flush();
+    try win.makeContextCurrent();
+
+    if (!win.opts.vsync) {
+        if (c.eglSwapInterval(win._target.display, @intCast(0)) != c.EGL_TRUE) {
+            log.info("could not disable vsync", .{});
+        }
+    }
+
+    if (opts.enable_joysticks) {
+        win._joystick_mgr = try joystick.JoystickManager.init(alloc);
+        const joystick_count = try win._joystick_mgr.?.detectJoysticks();
+        log.info("detected {d} joysticks", .{joystick_count});
+    }
 
     return win;
 }

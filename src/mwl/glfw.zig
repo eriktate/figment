@@ -1,4 +1,5 @@
 const std = @import("std");
+const log = @import("../log.zig");
 const c = @import("c");
 const events = @import("../input/events.zig");
 const glfw = @import("../glfw.zig");
@@ -19,8 +20,8 @@ pub const Window = struct {
     win: ?*c.GLFWwindow,
     events: RingBuffer(events.Event),
 
-    pub fn setTitle(self: *Window, title: [*c]const u8) !void {
-        c.glfwSetWindowTitle(self.win, title);
+    pub fn setTitle(self: *Window, title: []const u8) !void {
+        c.glfwSetWindowTitle(self.win, title.ptr);
     }
 
     pub fn setVsync(_: *Window, vsync: bool) void {
@@ -43,7 +44,7 @@ pub const Window = struct {
         return event_buffer.next();
     }
 
-    pub fn swap(self: Window) void {
+    pub fn swap(self: Window) !void {
         c.glfwSwapBuffers(self.win);
     }
 
@@ -62,7 +63,7 @@ export fn glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i
 }
 
 /// creates a new GLFW window
-pub fn createWindow(title: [*c]const u8, w: u16, h: u16, opts: WinOpts) !Window {
+pub fn createWindow(_: std.mem.Allocator, title: []const u8, w: u16, h: u16, opts: WinOpts) !Window {
     if (c.glfwInit() != 1) {
         return WinErr.GLFWInit;
     }
@@ -71,10 +72,12 @@ pub fn createWindow(title: [*c]const u8, w: u16, h: u16, opts: WinOpts) !Window 
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, opts.gl_minor);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-    const win = c.glfwCreateWindow(@intCast(w), @intCast(h), title, null, null) orelse {
+    log.info("create glfw window", .{});
+    const win = c.glfwCreateWindow(@intCast(w), @intCast(h), title.ptr, null, null) orelse {
         return WinErr.GLFWCreateWindow;
     };
 
+    log.info("make context current", .{});
     c.glfwMakeContextCurrent(win);
 
     if (!opts.vsync) {

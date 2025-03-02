@@ -176,7 +176,6 @@ pub fn captureGamepadState(ctrl: *controller.Controller) void {
 
 pub fn findFirstGamepad() usize {
     for (c.GLFW_JOYSTICK_1..c.GLFW_JOYSTICK_LAST + 1) |id| {
-        log.info("checking joystick: {d}", .{id});
         if (c.glfwJoystickPresent(@intCast(id)) == c.GLFW_TRUE) {
             var axes_count: c_int = undefined;
             if (c.glfwGetJoystickAxes(@intCast(id), &axes_count) == c.GLFW_FALSE) {
