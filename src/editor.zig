@@ -32,37 +32,10 @@ const WORLD_HEIGHT = 540;
 const VIEW_WIDTH = WINDOW_WIDTH / 2;
 const VIEW_HEIGHT = WINDOW_HEIGHT / 2;
 
-pub fn run() !void {
-    log.info("starting editor", .{});
-    const alloc = std.heap.page_allocator;
+pub fn simulate(g: *game.Game) !void {
+    log.info("starting simulation thread", .{});
 
-    var g = try game.init(alloc);
-
-    log.info("init audio subsystem", .{});
-    try audio.init(alloc, audio.Format{
-        .channels = 2,
-        .sample_fmt = .s16,
-        .sample_rate = 22050,
-    });
-    defer audio.deinit();
-
-    const debug_font = try font.initAscii(alloc, "./assets/fonts/charybdis.ttf", 16);
-
-    log.info("initializing window", .{});
-    var win = try mwl.createWindow(alloc, "Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
-    defer mwl.destroyWindow(win);
-    try win.setTitle("Mythic - *float*");
-
-    // init inputs after window because certain configs may require a valid window/context
-    try input_mgr.init(alloc);
-
-    log.info("window initialized", .{});
-
-    var renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
-    var debug = try DebugRenderer.init(alloc, "./shaders/debug_vs.glsl", "./shaders/debug_fs.glsl");
-    _ = try texture.loadFromFile(alloc, .tex, "./assets/sprites/atlas.png");
-    _ = try texture.loadFromFile(alloc, .font, "./font_atlas.png");
-    // texture.loadFromPixels(.font, debug_font.font_atlas, debug_font.atlas_w, debug_font.atlas_h);
+    const debug_font = try font.initAscii(g.alloc, "./assets/fonts/charybdis.ttf", 16);
 
     // add background
     _ = try g.spawn(Entity.init().withSprite(sprite.Sprite{
@@ -107,9 +80,6 @@ pub fn run() !void {
 
     var player = Player.init(ronin.id, &input_mgr.controllers.items[0]);
 
-    try renderer.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
-    try debug.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
-
     // for (0..10) |_| {
     //     _ = try g.spawn(Entity.initAt(
     //         render.Pos.init(@floatFromInt(random.lessThan(900)), @floatFromInt(random.lessThan(490)), 0),
@@ -120,20 +90,25 @@ pub fn run() !void {
     //     }));
     // }
 
-    var last_time = win.getTime();
-    var current_time = win.getTime();
+    var last_time = g.win.getTime();
+    var current_time = g.win.getTime();
     var stat_reset_timer = Timer.initMS(250);
     stat_reset_timer.reset();
     var dt: f32 = 0;
     var cam = Camera.init(WORLD_WIDTH, WORLD_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
-    while (!input_mgr.quit) {
+    while (!g.quit) {
+        if (input_mgr.quit) {
+            g.quit = true;
+            return;
+        }
+
         log.start(.loop);
         defer input_mgr.flush();
         defer last_time = current_time;
-        current_time = win.getTime();
+        current_time = g.win.getTime();
         dt = @floatCast(current_time - last_time);
 
-        while (try win.poll(input_mgr.controllers.items)) |event| {
+        while (try g.win.poll(input_mgr.controllers.items)) |event| {
             try input_mgr.handleEvent(event);
         }
 
@@ -144,7 +119,6 @@ pub fn run() !void {
         // update entities
         for (g.entities.itemsMut()) |*ent| {
             ent.tick(dt, g.entities.itemsMut());
-            try ent.drawDebug(&debug);
         }
         log.finish(.update);
 
@@ -153,27 +127,94 @@ pub fn run() !void {
         try g.ySort();
         log.finish(.sort);
 
-        log.start(.quads);
-        _ = try g.genQuads();
-        log.finish(.quads);
-
         if (try g.getEntity(1)) |r| {
             // log.info("ronin pos=({d}, {d})", .{ r.pos.x, r.pos.y });
             cam.lookAt(r.pos);
         }
 
-        // font shenanigans
-        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
-        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
-        try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
+        // only do prep work for rendering if the render thread is ready for it
+        if (g.getAccessMode() == .sim) {
+            for (g.entities.items()) |*ent| {
+                try ent.drawDebug(&g.debug);
+            }
+            // font shenanigans
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
 
-        try renderer.setProjection(cam.projection());
-        try debug.setProjection(cam.projection());
+            g.reset();
+            log.start(.quads);
+            _ = try g.genQuads();
+            log.finish(.quads);
+
+            try g.renderer.setProjection(cam.projection());
+            try g.debug.setProjection(cam.projection());
+            g.setAccessMode(.render);
+        }
+
+        if (stat_reset_timer.fired()) {
+            stat_reset_timer.reset();
+            log.reset();
+        }
+    }
+}
+
+/// The `run` function represents the main thread of execution. This is where global initialization and the render loop happens. The
+/// simulation of the game world is kicked off in a separate thread running the `simulate` function. A conditional `AccessMode` field
+/// on the shared `Game` object controls which thread has access to rendering specific data at a time, but it's up to both threads to
+/// properly respect that mode
+pub fn run() !void {
+    log.info("starting editor", .{});
+    const alloc = std.heap.page_allocator;
+
+    var g = try game.init(alloc);
+
+    log.info("init audio subsystem", .{});
+    try audio.init(alloc, audio.Format{
+        .channels = 2,
+        .sample_fmt = .s16,
+        .sample_rate = 22050,
+    });
+    defer audio.deinit();
+
+    log.info("initializing window", .{});
+    g.win = try mwl.createWindow(alloc, "Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
+    defer mwl.destroyWindow(g.win);
+    try g.win.setTitle("Mythic - *float*");
+
+    log.info("window initialized", .{});
+
+    // init inputs after window because certain configs may require a valid window/context
+    try input_mgr.init(g.alloc);
+
+    g.renderer = try QuadRenderer.init(alloc, "./shaders/vertex.glsl", "./shaders/fragment.glsl");
+    g.debug = try DebugRenderer.init(alloc, "./shaders/debug_vs.glsl", "./shaders/debug_fs.glsl");
+
+    _ = try texture.loadFromFile(alloc, .tex, "./assets/sprites/atlas.png");
+    _ = try texture.loadFromFile(alloc, .font, "./font_atlas.png");
+    // texture.loadFromPixels(.font, debug_font.font_atlas, debug_font.atlas_w, debug_font.atlas_h);
+
+    try g.renderer.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
+    try g.debug.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
+
+    const sim_thread = try std.Thread.spawn(.{}, simulate, .{g});
+    var local_quads = try alloc.alloc(render.Quad, 1);
+    local_quads[0] = (sprite.Sprite{
+        .width = 960,
+        .height = 540,
+        .source = .{ .frame = gen.getFrame(.bg_dungeon) },
+    }).toQuad(.{ .x = 0, .y = 0, .z = 0 }).?;
+
+    while (!g.quit) {
+        if (g.getAccessMode() != .render) {
+            continue;
+        }
 
         log.start(.render);
-        win.clear();
-        try renderer.render(try g.genQuads());
-        try debug.render();
+        g.win.clear();
+        try g.renderer.render(local_quads);
+        // try g.debug.render();
+        // TODO (soggy): could we revert the access mode here instead of waiting for the swap?
         log.finish(.render);
 
         log.start(.swap);
@@ -182,16 +223,13 @@ pub fn run() !void {
         // the pixels have been drawn, whereas glFlush does not block. So I wonder if this might eventually result
         // in flickering/tearing? Replacing glFlush with glFinish results in the same framerate we were seeing before
         gl.flush();
-        g.reset();
-        try win.swap();
+        try g.win.swap();
         log.finish(.swap);
         log.finish(.loop);
 
-        try debug.pushLine(.{ .x = 64, .y = 64 }, .{ .x = 128, .y = 128 });
-
-        if (stat_reset_timer.fired()) {
-            stat_reset_timer.reset();
-            log.reset();
-        }
+        g.setAccessMode(.sim);
     }
+
+    sim_thread.join();
+    log.info("quitting...", .{});
 }

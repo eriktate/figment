@@ -2,7 +2,10 @@ const std = @import("std");
 const log = @import("log.zig");
 const render = @import("render.zig");
 const sparse = @import("sparse.zig");
+const mwl = @import("mwl/mwl.zig");
 
+const QuadRenderer = render.QuadRenderer;
+const DebugRenderer = render.DebugRenderer;
 const Entity = @import("entity.zig");
 const Font = @import("font.zig").Font;
 
@@ -21,12 +24,25 @@ pub const Layer = enum {
     pickups,
 };
 
+pub const AccessMode = enum {
+    sim,
+    render,
+};
+
 /// Contains and manages global game state.
 pub const Game = struct {
+    access_mode: AccessMode = .sim,
+    quit: bool = false,
     quads: std.ArrayList(render.Quad),
     fg_quads: std.ArrayList(render.Quad),
     entities: sparse.Set(Entity),
     layers: std.EnumArray(Layer, std.ArrayList(usize)),
+
+    // these aren't very safe, but I'm lazy right now
+    win: *mwl.Window = undefined,
+    renderer: QuadRenderer = undefined,
+    debug: DebugRenderer = undefined,
+    alloc: std.mem.Allocator,
 
     pub fn spawn(self: *Game, entity: Entity) !*Entity {
         return try self.entities.add(entity);
@@ -42,6 +58,19 @@ pub const Game = struct {
 
     pub fn pushQuadFG(self: *Game, quad: render.Quad) !void {
         return try self.fg_quads.append(quad);
+    }
+
+    // NOTE (soggy): because we're just signaling mutually exclusive parts of the code
+    // to run or not, I don't think these actually have to be atomic. If they do, they
+    // can always be reverted
+    pub fn getAccessMode(self: *Game) AccessMode {
+        // return @atomicLoad(AccessMode, &self.access_mode, .unordered);
+        return self.access_mode;
+    }
+
+    pub fn setAccessMode(self: *Game, mode: AccessMode) void {
+        // @atomicStore(AccessMode, &self.access_mode, mode, .unordered);
+        self.access_mode = mode;
     }
 
     pub fn reset(self: *Game) void {
@@ -61,7 +90,7 @@ pub const Game = struct {
             try self.quads.append(quad);
         }
 
-        return self.quads.items[0..];
+        return self.quads.items;
     }
 
     pub fn zSort(self: *Game) !void {
@@ -120,6 +149,7 @@ pub fn init(alloc: std.mem.Allocator) !*Game {
         .fg_quads = try std.ArrayList(render.Quad).initCapacity(alloc, 10_000),
         .entities = try sparse.Set(Entity).initCapacity(alloc, 100_000),
         .layers = std.EnumArray(Layer, std.ArrayList(usize)).initUndefined(),
+        .alloc = alloc,
     };
 
     for (0..game.layers.values.len) |idx| {
