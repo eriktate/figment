@@ -12,7 +12,7 @@ pub const Metric = enum {
     render,
     swap,
     sort,
-    loop,
+    sim,
 };
 
 pub const Stat = struct {
@@ -155,7 +155,7 @@ pub const Logger = struct {
 fn getEmptyStats() std.EnumArray(Metric, Stat) {
     comptime {
         var emptyStats = std.EnumArray(Metric, Stat).initUndefined();
-        for (0..@intFromEnum(Metric.loop) + 1) |idx| {
+        for (0..@intFromEnum(Metric.sim) + 1) |idx| {
             var stat = Stat.zero();
             stat.metric = @enumFromInt(idx);
             emptyStats.set(stat.metric, stat);

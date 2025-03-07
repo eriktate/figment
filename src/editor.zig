@@ -102,7 +102,7 @@ pub fn simulate(g: *game.Game) !void {
             return;
         }
 
-        log.start(.loop);
+        log.start(.sim);
         defer input_mgr.flush();
         defer last_time = current_time;
         current_time = g.win.getTime();
@@ -134,24 +134,26 @@ pub fn simulate(g: *game.Game) !void {
 
         // only do prep work for rendering if the render thread is ready for it
         if (g.getAccessMode() == .sim) {
+            g.reset();
             for (g.entities.items()) |*ent| {
                 try ent.drawDebug(&g.debug);
             }
             // font shenanigans
-            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.loop).getRate()});
-            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.loop).getAverageTimeMS()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.render).getRate()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
             try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 56 }, "Ticks: {d}", .{log.getLastStat(.sim).getRate()});
+            // try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Ticks per frame: {d:.4}ms", .{@divFloor(log.getLastStat(.sim).count, log.getLastStat(.render).count)});
 
-            g.reset();
             log.start(.quads);
             _ = try g.genQuads();
             log.finish(.quads);
 
-            try g.renderer.setProjection(cam.projection());
-            try g.debug.setProjection(cam.projection());
+            g.projection = cam.projection();
             g.setAccessMode(.render);
         }
 
+        log.finish(.sim);
         if (stat_reset_timer.fired()) {
             stat_reset_timer.reset();
             log.reset();
@@ -198,24 +200,18 @@ pub fn run() !void {
     try g.debug.setWorldDimensions(WORLD_WIDTH, WORLD_HEIGHT);
 
     const sim_thread = try std.Thread.spawn(.{}, simulate, .{g});
-    var local_quads = try alloc.alloc(render.Quad, 1);
-    local_quads[0] = (sprite.Sprite{
-        .width = 960,
-        .height = 540,
-        .source = .{ .frame = gen.getFrame(.bg_dungeon) },
-    }).toQuad(.{ .x = 0, .y = 0, .z = 0 }).?;
-
     while (!g.quit) {
         if (g.getAccessMode() != .render) {
             continue;
         }
 
         log.start(.render);
+        try g.renderer.setProjection(g.projection);
+        try g.debug.setProjection(g.projection);
         g.win.clear();
-        try g.renderer.render(local_quads);
-        // try g.debug.render();
+        try g.renderer.render(g.quads.items);
+        try g.debug.render();
         // TODO (soggy): could we revert the access mode here instead of waiting for the swap?
-        log.finish(.render);
 
         log.start(.swap);
         // NOTE (soggy): for some reason calling glFlush before swapping results in a framerate boost of ~300%..?
@@ -225,7 +221,7 @@ pub fn run() !void {
         gl.flush();
         try g.win.swap();
         log.finish(.swap);
-        log.finish(.loop);
+        log.finish(.render);
 
         g.setAccessMode(.sim);
     }

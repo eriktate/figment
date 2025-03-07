@@ -3,6 +3,7 @@ const log = @import("log.zig");
 const render = @import("render.zig");
 const sparse = @import("sparse.zig");
 const mwl = @import("mwl/mwl.zig");
+const dim = @import("dim.zig");
 
 const QuadRenderer = render.QuadRenderer;
 const DebugRenderer = render.DebugRenderer;
@@ -31,6 +32,8 @@ pub const AccessMode = enum {
 
 /// Contains and manages global game state.
 pub const Game = struct {
+    alloc: std.mem.Allocator,
+
     access_mode: AccessMode = .sim,
     quit: bool = false,
     quads: std.ArrayList(render.Quad),
@@ -42,7 +45,7 @@ pub const Game = struct {
     win: *mwl.Window = undefined,
     renderer: QuadRenderer = undefined,
     debug: DebugRenderer = undefined,
-    alloc: std.mem.Allocator,
+    projection: dim.Mat4(f32) = undefined,
 
     pub fn spawn(self: *Game, entity: Entity) !*Entity {
         return try self.entities.add(entity);
