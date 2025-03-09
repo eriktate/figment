@@ -78,9 +78,6 @@ pub const Controller = struct {
 
         var input = c.inputs.getPtr(action);
         input.pressed = input.strength == 0;
-        if (input.pressed) {
-            log.info("pressed {any}", .{action});
-        }
         input.strength = 1;
     }
 
@@ -91,9 +88,6 @@ pub const Controller = struct {
 
         var input = c.inputs.getPtr(action);
         input.released = input.strength != 0;
-        if (input.released) {
-            log.info("released {any}", .{action});
-        }
         input.strength = 0;
     }
 

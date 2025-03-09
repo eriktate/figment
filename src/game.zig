@@ -25,16 +25,17 @@ pub const Layer = enum {
     pickups,
 };
 
-pub const AccessMode = enum {
+pub const Thread = enum {
     sim,
     render,
+    sound,
 };
 
 /// Contains and manages global game state.
 pub const Game = struct {
     alloc: std.mem.Allocator,
 
-    access_mode: AccessMode = .sim,
+    active_thread: Thread = .sim,
     quit: bool = false,
     quads: std.ArrayList(render.Quad),
     fg_quads: std.ArrayList(render.Quad),
@@ -66,14 +67,20 @@ pub const Game = struct {
     // NOTE (soggy): because we're just signaling mutually exclusive parts of the code
     // to run or not, I don't think these actually have to be atomic. If they do, they
     // can always be reverted
-    pub fn getAccessMode(self: *Game) AccessMode {
+    pub fn getActiveThread(self: *Game) Thread {
+        // NOTE (soggy): Because we're just signaling specific threads to have mutually exclusive
+        // access to certain members, I'm not convinced this needs to be atomic. If it proves to
+        // be a problem, we just need to uncomment this line
         // return @atomicLoad(AccessMode, &self.access_mode, .unordered);
-        return self.access_mode;
+        return self.active_thread;
     }
 
-    pub fn setAccessMode(self: *Game, mode: AccessMode) void {
+    pub fn setActiveThread(self: *Game, thread: Thread) void {
+        // NOTE (soggy): Because we're just signaling specific threads to have mutually exclusive
+        // access to certain members, I'm not convinced this needs to be atomic. If it proves to
+        // be a problem, we just need to uncomment this line
         // @atomicStore(AccessMode, &self.access_mode, mode, .unordered);
-        self.access_mode = mode;
+        self.active_thread = thread;
     }
 
     pub fn reset(self: *Game) void {

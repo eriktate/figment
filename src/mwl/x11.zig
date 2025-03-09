@@ -157,11 +157,6 @@ pub const Window = struct {
         // }
     }
 
-    pub fn getTime(_: Window) f64 {
-        const nano_f64: f64 = @floatFromInt(std.time.nanoTimestamp());
-        return nano_f64 / 1000 / 1000 / 1000;
-    }
-
     pub fn poll(self: *Window, _: []Controller) !?events.Event {
         return self._event_buffer.next();
     }

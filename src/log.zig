@@ -20,14 +20,19 @@ pub const Stat = struct {
     started_at: i64,
     total_time: i64,
     count: i64,
+    ready: bool = true,
 
     pub fn start(self: *Stat) void {
-        self.started_at = std.time.microTimestamp();
+        if (self.ready) {
+            self.started_at = std.time.microTimestamp();
+            self.ready = false;
+        }
     }
 
     pub fn finish(self: *Stat) void {
         self.total_time += std.time.microTimestamp() - self.started_at;
         self.count += 1;
+        self.ready = true;
     }
 
     pub fn clear(self: *Stat) void {

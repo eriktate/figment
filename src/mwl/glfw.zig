@@ -32,15 +32,13 @@ pub const Window = struct {
         unreachable;
     }
 
-    pub fn getTime(_: Window) f64 {
-        return c.glfwGetTime();
-    }
-
-    pub fn poll(_: Window, controllers: []Controller) !?events.Event {
+    pub fn poll(_: Window, _: []Controller) !?events.Event {
         c.glfwPollEvents();
-        for (controllers) |*ctrl| {
-            glfw.captureGamepadState(ctrl);
-        }
+        // TODO (soggy): glfw gamepad capture blows up the event system with release events for a few buttons,
+        // so it's commented out until that's addressed
+        // for (controllers) |*ctrl| {
+        //     glfw.captureGamepadState(ctrl);
+        // }
         return event_buffer.next();
     }
 
@@ -54,10 +52,14 @@ pub const Window = struct {
 };
 
 export fn glfwKeyCallback(_: ?*c.GLFWwindow, key: i32, _: i32, action: i32, _: i32) void {
+    // press and release are the only events we should be interested in
+    if (action != c.GLFW_PRESS and action != c.GLFW_RELEASE) {
+        return;
+    }
+
     const event = events.KeyEvent{
         .key = glfw.resolveKey(key) orelse return,
-        .pressed = action == c.GLFW_PRESS or action == c.GLFW_REPEAT,
-        // .pressed = action == c.GLFW_PRESS,
+        .pressed = action == c.GLFW_PRESS,
     };
     event_buffer.push(events.Event{ .key = event });
 }
@@ -82,6 +84,8 @@ pub fn createWindow(_: std.mem.Allocator, title: []const u8, w: u16, h: u16, opt
 
     if (!opts.vsync) {
         c.glfwSwapInterval(0);
+    } else {
+        c.glfwSwapInterval(1);
     }
 
     glfw.setKeyCallback(win, glfwKeyCallback);

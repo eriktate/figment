@@ -90,23 +90,35 @@ pub fn simulate(g: *game.Game) !void {
     //     }));
     // }
 
-    var last_time = g.win.getTime();
-    var current_time = g.win.getTime();
     var stat_reset_timer = Timer.initMS(250);
     stat_reset_timer.reset();
+    var last_time = g.win.getTime();
+    var current_time = g.win.getTime();
+    var elapsed: u64 = 0;
     var dt: f32 = 0;
     var cam = Camera.init(WORLD_WIDTH, WORLD_HEIGHT, VIEW_WIDTH, VIEW_HEIGHT, .{ .x = 16, .y = 16 });
     while (!g.quit) {
+        log.start(.sim);
+
         if (input_mgr.quit) {
             g.quit = true;
             return;
         }
 
-        log.start(.sim);
+        // NOTE (soggy): we're capping simulation rate at 100 microseconds to help reduce
+        // float precision issues with incredibly small deltas. This might need to be even
+        // lower resolution, but a lot of the weirdness I've seen seems to go away at this
+        // cap.
+        current_time = g.win.getTime();
+        elapsed = (current_time - last_time) / 1000; // microsecond granularity
+        if (elapsed < 100) { // 0.1 millisecond
+            continue;
+        }
+        dt = @floatFromInt(elapsed);
+        // dt *= 0.000_000_001; // nanosecond granularity
+        dt *= 0.000_001; // microsecond granularity
         defer input_mgr.flush();
         defer last_time = current_time;
-        current_time = g.win.getTime();
-        dt = @floatCast(current_time - last_time);
 
         while (try g.win.poll(input_mgr.controllers.items)) |event| {
             try input_mgr.handleEvent(event);
@@ -133,24 +145,29 @@ pub fn simulate(g: *game.Game) !void {
         }
 
         // only do prep work for rendering if the render thread is ready for it
-        if (g.getAccessMode() == .sim) {
+        if (g.getActiveThread() == .sim) {
             g.reset();
             for (g.entities.items()) |*ent| {
                 try ent.drawDebug(&g.debug);
             }
+            const fps = log.getLastStat(.render).getRate();
+            const tps = log.getLastStat(.sim).getRate();
+            const tpf = if (fps > 0) @divFloor(tps, fps) else 0;
+
             // font shenanigans
-            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{log.getLastStat(.render).getRate()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 8 }, "FPS: {d}", .{fps});
             try g.drawTextFmt(debug_font, .{ .x = 32, .y = 24 }, "Frame Time: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
             try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Render: {d:.4}ms", .{log.getLastStat(.render).getAverageTimeMS()});
-            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 56 }, "Ticks: {d}", .{log.getLastStat(.sim).getRate()});
-            // try g.drawTextFmt(debug_font, .{ .x = 32, .y = 40 }, "Ticks per frame: {d:.4}ms", .{@divFloor(log.getLastStat(.sim).count, log.getLastStat(.render).count)});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 56 }, "TPS: {d}", .{tps});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 72 }, "Tick Time: {d:.7}ms", .{log.getLastStat(.sim).getAverageTimeMS()});
+            try g.drawTextFmt(debug_font, .{ .x = 32, .y = 88 }, "TPF: {d}", .{tpf});
 
             log.start(.quads);
             _ = try g.genQuads();
             log.finish(.quads);
 
             g.projection = cam.projection();
-            g.setAccessMode(.render);
+            g.setActiveThread(.render);
         }
 
         log.finish(.sim);
@@ -162,7 +179,7 @@ pub fn simulate(g: *game.Game) !void {
 }
 
 /// The `run` function represents the main thread of execution. This is where global initialization and the render loop happens. The
-/// simulation of the game world is kicked off in a separate thread running the `simulate` function. A conditional `AccessMode` field
+/// simulation of the game world is kicked off in a separate thread running the `simulate` function. A conditional `Thread` field
 /// on the shared `Game` object controls which thread has access to rendering specific data at a time, but it's up to both threads to
 /// properly respect that mode
 pub fn run() !void {
@@ -180,7 +197,7 @@ pub fn run() !void {
     defer audio.deinit();
 
     log.info("initializing window", .{});
-    g.win = try mwl.createWindow(alloc, "Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = false });
+    g.win = try mwl.createWindow(alloc, "Mythic - *float*", WINDOW_WIDTH, WINDOW_HEIGHT, .{ .mode = .windowed, .vsync = true });
     defer mwl.destroyWindow(g.win);
     try g.win.setTitle("Mythic - *float*");
 
@@ -201,7 +218,7 @@ pub fn run() !void {
 
     const sim_thread = try std.Thread.spawn(.{}, simulate, .{g});
     while (!g.quit) {
-        if (g.getAccessMode() != .render) {
+        if (g.getActiveThread() != .render) {
             continue;
         }
 
@@ -213,17 +230,16 @@ pub fn run() !void {
         try g.debug.render();
         // TODO (soggy): could we revert the access mode here instead of waiting for the swap?
 
+        g.setActiveThread(.sim);
         log.start(.swap);
         // NOTE (soggy): for some reason calling glFlush before swapping results in a framerate boost of ~300%..?
         // Swapping ends up calling glFinish which blocks until all submitted GL commands have completed and all of
         // the pixels have been drawn, whereas glFlush does not block. So I wonder if this might eventually result
         // in flickering/tearing? Replacing glFlush with glFinish results in the same framerate we were seeing before
-        gl.flush();
+        // gl.flush();
         try g.win.swap();
         log.finish(.swap);
         log.finish(.render);
-
-        g.setAccessMode(.sim);
     }
 
     sim_thread.join();

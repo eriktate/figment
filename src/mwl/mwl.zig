@@ -5,6 +5,7 @@ const gl = @import("../gl.zig");
 const events = @import("../input/events.zig");
 const config = @import("config");
 const assert = std.debug.assert;
+const time = std.time;
 
 const Controller = @import("../input/controller.zig").Controller;
 
@@ -46,6 +47,7 @@ pub const Window = struct {
     alloc: std.mem.Allocator,
 
     _backend: backend.Window,
+    timer: time.Timer,
 
     title: []u8,
     w: u16,
@@ -82,8 +84,12 @@ pub const Window = struct {
         self.alloc.destroy(self);
     }
 
-    pub fn getTime(self: Window) f64 {
-        return self._backend.getTime();
+    pub fn getTime(self: *Window) u64 {
+        // return self._backend.getTime();
+
+        // const nano_f64: f64 = @floatFromInt(std.time.nanoTimestamp());
+        // return nano_f64 / 1000 / 1000 / 1000;
+        return self.timer.read();
     }
 
     pub fn poll(self: *Window, controllers: []Controller) !?events.Event {
@@ -110,8 +116,10 @@ pub fn createWindow(alloc: std.mem.Allocator, title: []const u8, w: u16, h: u16,
         .h = h,
         .opts = opts,
         .title = try alloc.alloc(u8, MAX_TITLE_LEN),
+        .timer = undefined,
     };
 
+    win.timer = try time.Timer.start();
     try win.copyTitle(title);
     win._backend = try backend.createWindow(alloc, win.title, w, h, opts);
 

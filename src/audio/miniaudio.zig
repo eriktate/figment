@@ -78,7 +78,7 @@ export fn audioCallback(dev: ?*anyopaque, out: ?*anyopaque, _: ?*const anyopaque
         }
 
         for (0..frames_read * d.playback.channels) |sample| {
-            const potential_sample: isize = output[sample] + mix_buf[sample];
+            const potential_sample: isize = @as(isize, @intCast(output[sample])) + @as(isize, @intCast(mix_buf[sample]));
             const final_sample = std.math.clamp(potential_sample, std.math.minInt(i16), std.math.maxInt(i16));
             output[sample] = @intCast(final_sample);
         }
